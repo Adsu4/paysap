@@ -1,0 +1,45 @@
+name: PaySap Production CI/CD
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Execute RBAC Access Separation Test Suite
+        run: node test_access_separation.js
+
+      - name: Execute Senior PM Integrity Test Suite
+        run: node test_pm_fixes.js
+
+  deploy:
+    needs: test-and-verify
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to DigitalOcean Droplet
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: deployer
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/deployer/apps/boutique-paylink
+            git pull origin main
+            npm install --production
+            pm2 reload ecosystem.config.js --update-env
+            echo "🚀 PaySap Production deployment successfully executed at $(date)"

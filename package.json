@@ -1,0 +1,23 @@
+{
+  "name": "boutique-paylink",
+  "version": "1.0.0",
+  "description": "WhatsApp Micro-Link Checkout & Automated Dispatch for Retail Merchants",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test_access_separation.js && node test_pm_fixes.js",
+    "migrate": "node scripts/migrate_json_to_postgres.js"
+  },
+  "dependencies": {
+    "compression": "^1.8.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-rate-limit": "^8.7.3",
+    "helmet": "^8.3.0",
+    "imapflow": "^2.10.0",
+    "mailparser": "^3.14.1",
+    "pg": "^8.23.1"
+  }
+}

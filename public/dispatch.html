@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>PaySap • Live Dispatch Board &amp; Fulfillment</title>
+  <meta name="description" content="PaySap live fulfillment CRM with direct bank verification and express courier dispatch."/>
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+  <style>
+    @layer base {
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+    }
+    ::-webkit-scrollbar { display: none; }
+  </style>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            canvas: '#ebe9f7',
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="/css/mobile.css"/>
+</head>
+<body class="bg-[#ebe9f7] min-h-screen text-slate-800 antialiased py-6 sm:py-10 px-3 sm:px-6 flex flex-col items-center justify-start selection:bg-indigo-100 selection:text-indigo-900">
+
+  <!-- Ambient Top Floating Pill Badges -->
+  <div class="w-full max-w-7xl flex items-center justify-between mb-4 px-3 sm:px-2 text-xs font-semibold text-slate-500">
+    <div class="flex items-center gap-2">
+      <span class="px-3.5 py-1.5 bg-white/80 backdrop-blur-md rounded-full shadow-xs border border-white/60 text-slate-700">PaySap</span>
+      <span class="px-3.5 py-1.5 bg-white/60 backdrop-blur-md rounded-full text-slate-500">Fulfillment Board</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="px-3.5 py-1.5 bg-white/60 backdrop-blur-md rounded-full text-slate-500">Auto-Verification</span>
+      <span class="px-3.5 py-1.5 bg-white/80 backdrop-blur-md rounded-full shadow-xs border border-white/60 text-emerald-700 font-bold flex items-center gap-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live Bank Auto-Settlement
+      </span>
+    </div>
+  </div>
+
+  <!-- Main Floating Container -->
+  <div class="w-full max-w-7xl bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/5 border border-white p-5 sm:p-8 flex flex-col gap-6">
+
+    <!-- Header Navigation -->
+    <header class="w-full flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
+      <div class="flex items-center gap-4">
+        <a href="/" class="flex items-center gap-2.5 text-inherit no-underline">
+          <div class="w-9 h-9 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+            <span class="material-symbols-outlined text-[20px]">bolt</span>
+          </div>
+          <div>
+            <div class="font-extrabold text-[17px] tracking-tight text-slate-900 leading-none">PaySap</div>
+            <div class="text-[10px] font-semibold text-slate-400 mt-0.5">Store Fulfillment Hub</div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Center: Pill Navigation Tabs -->
+      <nav class="order-3 lg:order-2 flex items-center gap-1 bg-slate-50 p-1 rounded-full border border-slate-200/70 text-xs font-semibold">
+        <a class="px-4 py-1.5 rounded-full text-slate-500 hover:text-slate-900 transition-colors" href="/">Link Studio</a>
+        <a class="px-4 py-1.5 rounded-full bg-white text-slate-900 shadow-xs border border-slate-200/80" href="/dispatch">Dispatch Board</a>
+        <a class="px-4 py-1.5 rounded-full text-slate-500 hover:text-slate-900 transition-colors" href="/api/export/csv">Export CSV</a>
+      </nav>
+
+      <div class="order-2 lg:order-3 flex items-center gap-2 sm:gap-3">
+        <button type="button" id="btnRefresh" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs">
+          <span class="material-symbols-outlined text-[16px]">refresh</span>
+          <span>Refresh</span>
+        </button>
+        <a href="/api/export/csv" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors text-inherit no-underline">
+          <span class="material-symbols-outlined text-[16px]">download</span>
+          <span>Export CSV</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Top KPI Cards Ribbon -->
+    <section class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-xs flex flex-col justify-between">
+        <span class="text-xs font-semibold text-slate-500">Gross Verified Revenue</span>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span class="text-2xl font-extrabold text-slate-900 tracking-tight" id="metricRevenue">₹0.00</span>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-xs flex flex-col justify-between">
+        <span class="text-xs font-semibold text-slate-500">Paid &amp; Verified</span>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span class="text-2xl font-extrabold text-emerald-600 tracking-tight" id="metricPaid">0</span>
+          <span class="text-xs text-emerald-600 font-bold">100% Verified</span>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-xs flex flex-col justify-between">
+        <span class="text-xs font-semibold text-slate-500">Pending Checkout</span>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span class="text-2xl font-extrabold text-amber-600 tracking-tight" id="metricPending">0</span>
+          <span class="text-xs text-slate-400">Reserved hold</span>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-xs flex flex-col justify-between">
+        <span class="text-xs font-semibold text-slate-500">Dispatched / Packed</span>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span class="text-2xl font-extrabold text-indigo-600 tracking-tight" id="metricDispatched">0</span>
+          <span class="text-xs text-indigo-600 font-bold">Courier Ready</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Controls Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70 border border-slate-100 rounded-2xl p-3 sm:p-4">
+      <!-- Filter Tabs -->
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <button class="dispatch-filter px-3 py-1 rounded-full bg-slate-900 text-white text-xs font-semibold shadow-xs" data-status="ALL" type="button">
+          All Orders
+        </button>
+        <button class="dispatch-filter px-3 py-1 rounded-full bg-white hover:bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200 transition-colors" data-status="PAID" type="button">
+          🟢 Paid Only
+        </button>
+        <button class="dispatch-filter px-3 py-1 rounded-full bg-white hover:bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200 transition-colors" data-status="PENDING" type="button">
+          🟡 In Progress
+        </button>
+      </div>
+
+      <!-- Search Input -->
+      <div class="flex items-center gap-2">
+        <div class="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition-all text-xs">
+          <span class="material-symbols-outlined text-[17px] text-slate-400 mr-1.5">search</span>
+          <input type="text" id="searchInput" class="outline-none text-slate-800 placeholder:text-slate-400 text-xs w-48 sm:w-64" placeholder="Search client, phone, ref, item, UTR..."/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="overflow-x-auto rounded-2xl border border-slate-100">
+      <table class="w-full text-left text-xs">
+        <thead>
+          <tr class="text-slate-400 font-semibold border-b border-slate-100 bg-slate-50/50">
+            <th class="py-3 px-4">Ref</th>
+            <th class="py-3 px-4">Client</th>
+            <th class="py-3 px-4">Item Name</th>
+            <th class="py-3 px-4">Amount (₹)</th>
+            <th class="py-3 px-4">Payment &amp; UTR</th>
+            <th class="py-3 px-4">Doorstep Shipping Address</th>
+            <th class="py-3 px-4">Pincode</th>
+            <th class="py-3 px-4">Dispatch Tier</th>
+            <th class="py-3 px-4 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-slate-700 font-medium" id="ordersTableBody">
+          <!-- Populated by dispatch.js -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Bank Settlement Stream Card -->
+    <div class="bg-indigo-50/40 border border-indigo-100 rounded-2xl p-4 flex items-start gap-3 text-xs">
+      <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-[18px]">verified</span>
+      </div>
+      <div class="flex-1">
+        <h4 class="font-bold text-indigo-950">Direct Bank Auto-Settlement Active</h4>
+        <p class="text-slate-500 mt-0.5 leading-relaxed">
+          Orders are automatically matched and confirmed when customer UPI payments hit your bank account. Only verified, paid orders are placed in this queue for doorstep courier fulfillment.
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="pt-2 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2 font-medium">
+      <div>© 2026 PaySap • Direct Bank-Verified Sales Rails</div>
+      <div class="flex items-center gap-3">
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Express Dispatch Ready</span>
+        <span>•</span>
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Direct Settlement Live</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Notification Toast -->
+  <div class="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 text-xs font-medium" id="toast">
+    <span class="material-symbols-outlined text-[17px] text-emerald-400" id="toastIcon">check_circle</span>
+    <span id="toastMsg">Updated!</span>
+  </div>
+
+  <script src="/js/dispatch.js"></script>
+</body>
+</html>

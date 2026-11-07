@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment Variables & Secrets
+.env
+.env.production
+.env.local
+
+# Sensitive runtime configurations & credentials
+data/oauth_config.json
+
+# Dynamic runtime database stores (avoid repository bloat & data leaks)
+data/orders.json
+data/sessions.json
+data/unmatched_credits.json
+data/*.tmp
+data_backup*/
+
+# System & Editor Logs
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

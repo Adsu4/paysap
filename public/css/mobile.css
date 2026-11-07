@@ -1,0 +1,422 @@
+/* ==========================================================================
+   PaySap — Mobile-first layer
+   --------------------------------------------------------------------------
+   EVERYTHING in this file is scoped to phones (< 768px, Tailwind's `md`).
+   Desktop/tablet (>= 768px) never matches these rules, so the desktop UI is
+   untouched. Tailwind's CDN injects its own <style> after this file, so
+   overrides here use #ids and !important where they must beat utilities.
+   ========================================================================== */
+
+@media (max-width: 767px) {
+
+  :root {
+    --m-nav-h: 64px;
+    --m-safe-b: max(8px, env(safe-area-inset-bottom, 8px));
+    --m-gutter: 14px;
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+  body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+
+  /* ---------- Touch-friendly form controls (all pages) ---------- */
+  /* 16px stops iOS from zooming on focus and is far easier to read/type. */
+  input[type="text"], input[type="tel"], input[type="email"], input[type="url"],
+  input[type="password"], input[type="number"], input[type="search"],
+  input:not([type]), select, textarea {
+    font-size: 16px !important;
+  }
+  select { min-height: 44px; }
+
+  /* The forms plugin draws a 2nd border on inputs that already sit inside a
+     bordered wrapper (+91 phone, SKU, PIN, UPI fields...). Remove the inner one. */
+  div.flex > input.bg-transparent,
+  div.flex > select.bg-transparent {
+    border: 0 !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+    padding-left: 0;
+    min-height: 40px;
+  }
+
+  button, a, label[for], select { touch-action: manipulation; }
+
+  /* ======================================================================
+     SELLER APP (index.html)
+     ====================================================================== */
+
+  /* Drop the "floating card on a canvas" desktop framing: go edge-to-edge. */
+  body:has(#appShell) {
+    padding: 0 !important;
+    background: #f6f5fb !important;
+  }
+  #ambientTopBar { display: none !important; }
+
+  #appShell {
+    border-radius: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 var(--m-gutter) calc(var(--m-nav-h) + var(--m-safe-b) + 20px) !important;
+    gap: 14px !important;
+    min-height: 100vh;
+  }
+
+  /* ---------- Sticky app bar ---------- */
+  #appHeader {
+    width: calc(100% + 2 * var(--m-gutter)) !important;
+    position: sticky;
+    top: 0;
+    z-index: 35;
+    margin: 0 calc(-1 * var(--m-gutter));
+    padding: calc(10px + env(safe-area-inset-top, 0px)) var(--m-gutter) 10px !important;
+    background: rgba(255, 255, 255, 0.92);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    backdrop-filter: saturate(180%) blur(14px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+  }
+  /* Desktop pill tab-bar: JS un-hides it for owners, which made it explode into
+     a vertical blob on phones. The bottom dock is the phone navigation. */
+  #headerMasterNav { display: none !important; }
+  /* Compact, thumb-friendly user role capsule on mobile header */
+  #appHeader div:has(> #headerAvatar) {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 3px 8px 3px 4px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(226, 232, 240, 0.9) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    max-width: 140px !important;
+  }
+  #appHeader #headerAvatar {
+    display: flex !important;
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 999px !important;
+    font-size: 9px !important;
+    font-weight: 800 !important;
+    flex-shrink: 0 !important;
+  }
+  #appHeader #headerAvatar + div {
+    display: block !important;
+    overflow: hidden !important;
+    line-height: 1 !important;
+  }
+  #appHeader #headerRoleBadge {
+    font-size: 10.5px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 95px !important;
+  }
+  #appHeader #headerUpiId {
+    display: none !important; /* Hide UPI ID on phones to keep header clean & uncluttered */
+  }
+  #appHeader button[onclick^="handleLogout"] {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+  }
+
+  /* ---------- KPI ribbon → 3 compact stat tiles ---------- */
+  #kpiRibbon {
+    display: block !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  #kpiRibbon > div:first-child {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px !important;
+  }
+  #kpiRibbon > div:first-child > span { display: none; } /* "|" separators */
+  #kpiRibbon > div:first-child > div {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    background: #fff;
+    border: 1px solid #e9e7f3;
+    border-radius: 14px;
+    padding: 10px 11px;
+    min-width: 0;
+  }
+  #kpiRibbon > div:first-child > div > span:first-child {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  }
+  #kpiRibbon > div:first-child > div > span:last-child {
+    font-size: 15px; line-height: 1.2; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 100%;
+  }
+  #kpiRibbon > div:last-child { display: none !important; } /* Next Ref (shown in builder) */
+
+  /* ---------- Sales studio: queue chips (salesman) ---------- */
+  #salesTabBar {
+    width: calc(100% + 2 * var(--m-gutter)) !important;
+    margin: 0 calc(-1 * var(--m-gutter));
+    padding: 0 var(--m-gutter) 10px !important;
+    scroll-snap-type: x proximity;
+    scroll-padding: 0 var(--m-gutter);
+    border-bottom: 0 !important;
+    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
+    mask-image: linear-gradient(90deg, #000 88%, transparent);
+  }
+  #salesTabsNav > button { scroll-snap-align: start; min-height: 40px; border-radius: 999px !important; }
+  #salesTabsNav { padding-right: 32px; }
+  #sectionStudio { gap: 14px !important; }
+
+  /* ---------- Quick Checkout Builder: one clean card ---------- */
+  #viewNewSale { gap: 14px !important; }
+  #builderCard,
+  #readyRailCard {
+    background: #fff !important;
+    border: 1px solid #ebe9f3 !important;
+    border-radius: 20px !important;
+    padding: 16px !important;
+  }
+  #builderCard input, #builderCard select { min-height: 46px; }
+  #builderCard div.flex > input.bg-transparent { min-height: 40px; }
+  #builderFeatureStrips,
+  #builderAutoSyncTag,
+  #preGenerateNotice { display: none !important; }
+
+  /* Catalog quick chips: one swipeable row instead of a wall of chips */
+  #catalogQuickChips {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  #catalogQuickChips > * { flex: 0 0 auto; scroll-snap-align: start; max-width: 78vw; }
+
+  /* Quick amount chips: even 4-up row, big touch targets */
+  #linkGeneratorForm button[onclick^="adjustAmount"] { flex: 1 1 0; min-height: 40px; padding-left: 4px; padding-right: 4px; }
+  #linkGeneratorForm div:has(> button[onclick^="adjustAmount"]) { flex-wrap: nowrap !important; }
+  #orderValue { font-size: 20px !important; }
+
+  /* Primary CTA stays reachable while filling the form (sticks above the dock) */
+  #btnSubmitGenerate {
+    position: sticky;
+    bottom: calc(var(--m-nav-h) + var(--m-safe-b) + 10px);
+    z-index: 20;
+    height: 52px !important;
+    font-size: 15px !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 24px -8px rgba(5, 150, 105, .55) !important;
+  }
+
+  #postGenerateActions button { min-height: 44px; }
+  #automationShortcuts { padding: 12px !important; }
+  #automationShortcuts > div:first-child { display: none; }
+
+  /* ---------- Sale cockpit ---------- */
+  #cockpitCommandBar { border-radius: 20px !important; }
+  #cockpitCommandBar > div:last-child {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px !important;
+    width: 100%;
+  }
+  #cockpitCommandBar > div:last-child > :first-child { grid-column: 1 / -1; min-height: 46px; justify-content: center; font-size: 14px; }
+  #cockpitCommandBar > div:last-child > * { justify-content: center; min-height: 42px; }
+
+  /* 5 tall step cards → compact vertical timeline */
+  #cockpitStepsContainer { gap: 6px !important; }
+  #cockpitStepsContainer .step-card {
+    display: grid !important;
+    grid-template-columns: 36px 1fr auto;
+    align-items: center;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+  }
+  #cockpitStepsContainer .step-card > div:first-child > span:last-child { display: none; } /* "STEP n" tag */
+  #cockpitStepsContainer .step-card > div:nth-child(2) p { font-size: 11px; line-height: 1.3; }
+  #cockpitStepsContainer .step-card > div:last-child {
+    border-top: 0 !important;
+    padding-top: 0 !important;
+    text-align: right;
+    white-space: nowrap;
+  }
+  #viewSaleDetail > div { border-radius: 20px !important; }
+  #viewSaleDetail > div:nth-child(2), #viewSaleDetail > div:nth-child(3) { padding: 14px !important; }
+
+  /* ---------- Manage links ---------- */
+  #manageLinksSection { margin-top: 4px !important; }
+  #manageLinksSection .filter-tab,
+  #manageLinksSection a { min-height: 34px; display: inline-flex; align-items: center; }
+  #manageLinksSection > div:first-child > div {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 calc(-1 * var(--m-gutter));
+    padding: 0 var(--m-gutter);
+  }
+  #manageLinksSection > div:first-child > div > * { flex: 0 0 auto; }
+
+  #appFooter { display: none !important; }
+
+  /* ---------- Master (owner) views ---------- */
+  #sectionMaster, #sectionMaster > div { gap: 14px !important; }
+  #sectionMaster .rounded-3xl { border-radius: 20px !important; }
+  #sectionMaster .p-5 { padding: 14px !important; }
+
+  /* Header card: actions become an even 2-up row */
+  #masterHeaderCard > div:last-child,
+  #mViewInventory > div:first-child > div:last-child {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+  #masterHeaderCard > div:last-child > button,
+  #mViewInventory > div:first-child > div:last-child > button { justify-content: center; min-height: 42px; }
+
+  /* Funnel: 5th tile spans full width instead of sitting orphaned */
+  #storeFunnelContainer { gap: 8px !important; }
+  #storeFunnelContainer > :last-child { grid-column: 1 / -1; }
+
+  /* Long section titles/descriptions: tighten */
+  #sectionMaster h3.text-base { font-size: 15px; line-height: 1.3; }
+  #sectionMaster h3 + p, #sectionMaster div > p.text-xs.text-slate-500.mt-0\.5 { font-size: 12px; }
+
+  /* Stock search full width */
+  div:has(> #stockSearchInput) { flex: 1 1 100%; }
+  #stockSearchInput { width: 100% !important; }
+  #stockCategoryFilter { flex: 1 1 100%; }
+
+  /* Dispatch filters: swipeable, full-width salesman select */
+  #mViewDispatch select#dispSalesmanFilter { flex: 1; min-width: 0; }
+  #mViewDispatch div:has(> #dispSalesmanFilter) { width: 100%; }
+  .disp-filter-btn { min-height: 36px; flex: 0 0 auto; }
+
+  /* Settings: full-width save button that sticks above the dock */
+  #btnSaveSettings {
+    align-self: stretch !important;
+    justify-content: center;
+    position: sticky;
+    bottom: calc(var(--m-nav-h) + var(--m-safe-b) + 10px);
+    min-height: 50px;
+    font-size: 14px !important;
+    z-index: 20;
+  }
+
+  /* ---------- Bottom sheets (modals) ---------- */
+  #qrModal > div, #addSalesmanModal > div, #editSalesmanModal > div,
+  #modalAddProduct > div, #modalQuickSale > div,
+  #modalTestEmail > div, #modalOAuthConfig > div {
+    max-width: 100% !important;
+    padding-bottom: calc(20px + var(--m-safe-b)) !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    animation: m-sheet-up .22s ease-out;
+  }
+  #modalQuickSale button[type="submit"], #modalAddProduct button,
+  #addSalesmanModal button, #editSalesmanModal button,
+  #modalTestEmail button, #modalOAuthConfig button { min-height: 46px; }
+  #modalQuickSale input, #modalAddProduct input, #addSalesmanModal input, #editSalesmanModal input,
+  #modalTestEmail input, #modalOAuthConfig input { min-height: 46px; }
+
+  /* Modal close buttons: ensure minimum 44x44px touch targets on phones */
+  .fixed.inset-0 button[onclick*="close"],
+  .fixed.inset-0 button[onclick*="Close"],
+  .fixed.inset-0 button[onclick*="toggleQrModal"] {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Prevent background page scroll bounce when any modal is open */
+  body:has(.fixed.inset-0:not(.hidden)) {
+    overflow: hidden !important;
+  }
+
+  /* Stock cards on narrow phones (<= 360px): allow clean wrapping of badge and buttons */
+  #stockCrmMobileList .flex.items-center.justify-between {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* ---------- Bottom navigation dock ---------- */
+  #mobileBottomNav {
+    height: calc(var(--m-nav-h) + var(--m-safe-b));
+    padding: 4px 6px var(--m-safe-b) !important;
+    align-items: stretch !important;
+    box-shadow: 0 -6px 24px -12px rgba(30, 27, 75, .18) !important;
+  }
+  #mobileBottomNav > button { position: relative; min-width: 0; }
+  #mobileBottomNav > button > span:last-child { white-space: nowrap; font-size: 10.5px; }
+  #mobileBottomNav > div { display: flex; align-items: center; }
+  #mobileBottomNav .m-nav-badge {
+    position: absolute; top: 2px; left: 50%; margin-left: 6px;
+    min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
+    background: #e11d48; color: #fff; font-size: 10px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #fff;
+  }
+  #mobileBottomNav .m-nav-badge[data-n="0"] { display: none; }
+  #mobileBottomNav > button.text-indigo-600::before {
+    content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 22px; height: 3px; border-radius: 0 0 4px 4px; background: #4f46e5;
+  }
+
+  /* Toast: centred above the dock */
+  #toast {
+    left: 0 !important; right: 0 !important;
+    margin: 0 auto;
+    width: fit-content;
+    max-width: calc(100vw - 32px);
+    bottom: calc(var(--m-nav-h) + var(--m-safe-b) + 14px) !important;
+    pointer-events: none;
+  }
+  body:not(:has(#mobileBottomNav)) #toast { bottom: calc(16px + var(--m-safe-b)) !important; }
+
+  /* ======================================================================
+     CUSTOMER CHECKOUT (pay.html)
+     ====================================================================== */
+  body:has(#beatAddressCard) { padding: 10px 10px 0 !important; }
+  body:has(#beatAddressCard) main { padding: 16px !important; border-radius: 22px !important; margin-bottom: 8px !important; }
+  #addressForm input { min-height: 48px; }
+  #addressForm div.flex > input.bg-transparent { min-height: 42px; }
+
+  /* Continue / Pay stay in thumb reach */
+  #btnContinueToPayment {
+    position: sticky;
+    bottom: calc(10px + var(--m-safe-b));
+    z-index: 20;
+    height: 54px !important;
+    font-size: 15px !important;
+    border-radius: 16px !important;
+    box-shadow: 0 12px 28px -10px rgba(79, 70, 229, .6) !important;
+  }
+  #btnPayUpiIntent { min-height: 58px; font-size: 16px !important; }
+  #btnToggleQr { min-height: 42px; }
+  #btnOpenUtrEarly { padding: 8px 0; }
+  #utrInput { min-height: 46px; }
+  #btnSubmitUtr { min-height: 46px; }
+  #btnConfirmWhatsApp, #btnOosWhatsApp { min-height: 52px; font-size: 15px !important; border-radius: 16px !important; }
+
+  /* ======================================================================
+     AUTH (auth.html)
+     ====================================================================== */
+  body:has(#salesmanForm) { justify-content: flex-start !important; padding: 12px !important; padding-top: calc(16px + env(safe-area-inset-top, 0px)) !important; }
+  body:has(#salesmanForm) main { border-radius: 24px !important; }
+  #tabBtnSalesman, #tabBtnOwner, #tabBtnRegister { min-height: 44px; font-size: 12px !important; }
+  #btnSalesmanSubmit, #btnOwnerSubmit, #btnRegSubmit { height: 52px !important; font-size: 15px !important; border-radius: 16px !important; }
+  #salesmanPin { font-size: 22px !important; letter-spacing: .4em; }
+  #salesmanForm input, #ownerForm input, #registerForm input, #registerForm select { min-height: 44px; }
+}
+
+@keyframes m-sheet-up {
+  from { transform: translateY(24px); opacity: .6; }
+  to   { transform: translateY(0); opacity: 1; }
+}
