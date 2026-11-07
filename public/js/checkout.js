@@ -5,6 +5,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Token-first: ?token=kav_8f9a2b7c4d (new), ?ref=104 (legacy backward compat)
   const orderToken = urlParams.get('token') || urlParams.get('ref') || '';
 
+  // Core state variables declared upfront to avoid Temporal Dead Zone ReferenceErrors
+  let currentOrder = null;
+  let pollInterval = null;
+  let pollCount = 0;
+  const MAX_POLL_COUNT = 600; // Stop auto-polling after 10 minutes (600 * 1s)
+
   const loadingCard = document.getElementById('loadingCard');
   const errorCard = document.getElementById('errorCard');
   const errorMsg = document.getElementById('errorMsg');
@@ -181,9 +187,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    if (order.notes && billNotes && billNotesRow) {
-      billNotes.textContent = order.notes;
+    // Render customer-directed instructions if explicitly provided (Internal staff notes are NEVER shown)
+    if (order.customerInstructions && billNotes && billNotesRow) {
+      billNotes.textContent = order.customerInstructions;
       billNotesRow.classList.remove('hidden');
+    } else if (billNotesRow) {
+      billNotesRow.classList.add('hidden');
     }
 
     // Pre-populate address inputs if customer details exist
@@ -1076,9 +1085,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Polling error:', err);
     }
   }
-
-  let pollCount = 0;
-  const MAX_POLL_COUNT = 600; // Stop polling after 10 minutes (600 * 1s)
 
   function startPollingForPayment() {
     if (pollInterval) clearInterval(pollInterval);

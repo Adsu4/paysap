@@ -1,5 +1,18 @@
 [
   {
+    "id": "prod_1794075858281_zbrc",
+    "sku": "STF-PROD-01",
+    "sellerId": "seller_1793462353842_fstlf",
+    "name": "Authorized Staff Product",
+    "category": "Bespoke Jewellery & Silver",
+    "price": 1200,
+    "stock": 10,
+    "description": "Authorized Staff Product",
+    "notes": "",
+    "image": null,
+    "createdAt": "2026-11-07T18:24:18.281Z"
+  },
+  {
     "id": "prod_1793912891761_8d5l",
     "sku": "STF-PROD-01",
     "sellerId": "seller_1793462353842_fstlf",

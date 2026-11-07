@@ -2,11 +2,11 @@ module.exports = {
   apps: [{
     name: 'paysap-api',
     script: 'server.js',
-    instances: 'max',       // Cluster mode utilizing all available CPU cores
-    exec_mode: 'cluster',
+    instances: 1,           // Single process to prevent multi-worker concurrency collisions with JSON persistence
+    exec_mode: 'fork',
     autorestart: true,
     watch: false,
-    max_memory_restart: '800M',
+    max_memory_restart: '500M',
     env: {
       NODE_ENV: 'production',
       PORT: 3000

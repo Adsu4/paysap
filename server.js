@@ -208,16 +208,32 @@ const BANK_PRESETS = {
 
 function isVerifiedBankSender(fromHeader, storeBankingAutomation) {
   if (!fromHeader) return false;
-  const cleanFrom = String(fromHeader).toLowerCase();
 
-  // 1. Check store's configured verifiedSenderEmail (supports single, multiple comma-separated, or domains like @mybank.com)
+  // Extract actual email address from "HDFC Bank <alerts@hdfcbank.net>" or "alerts@hdfcbank.net"
+  const rawFrom = String(fromHeader).trim().toLowerCase();
+  const match = rawFrom.match(/<([^>]+)>/) || [null, rawFrom];
+  const email = (match[1] || '').trim();
+  if (!email || !email.includes('@')) return false;
+
+  const domain = email.split('@')[1].trim();
+
+  // Helper: Strict domain check (must be exact domain or valid subdomain of trusted domain)
+  function matchesTrustedDomain(targetDomain, trusted) {
+    if (!targetDomain || !trusted) return false;
+    const cleanTrusted = trusted.toLowerCase().replace(/^@/, '').trim();
+    return targetDomain === cleanTrusted || targetDomain.endsWith('.' + cleanTrusted);
+  }
+
+  // 1. Check store's configured verifiedSenderEmail
   if (storeBankingAutomation && storeBankingAutomation.verifiedSenderEmail) {
     const rawExpected = storeBankingAutomation.verifiedSenderEmail.toLowerCase().trim();
     if (rawExpected) {
       const parts = rawExpected.split(/[,;]+/).map(s => s.trim().replace(/^@/, '')).filter(Boolean);
       for (const part of parts) {
-        if (cleanFrom.includes(part)) {
-          return true;
+        if (part.includes('@')) {
+          if (email === part) return true;
+        } else {
+          if (matchesTrustedDomain(domain, part)) return true;
         }
       }
     }
@@ -227,8 +243,8 @@ function isVerifiedBankSender(fromHeader, storeBankingAutomation) {
   const bankCode = (storeBankingAutomation && storeBankingAutomation.bankCode) || '';
   const preset = BANK_PRESETS[bankCode];
   if (preset && preset.allowedDomains && preset.allowedDomains.length > 0) {
-    for (const domain of preset.allowedDomains) {
-      if (cleanFrom.includes(`@${domain}`) || cleanFrom.includes(`.${domain}`)) {
+    for (const trusted of preset.allowedDomains) {
+      if (matchesTrustedDomain(domain, trusted)) {
         return true;
       }
     }
@@ -239,8 +255,8 @@ function isVerifiedBankSender(fromHeader, storeBankingAutomation) {
     'icicibank.com', 'icicibank.net', 'hdfcbank.net', 'hdfcbank.com',
     'sbi.co.in', 'axisbank.com', 'kotak.com', 'pnb.co.in', 'bankofbaroda.com'
   ];
-  for (const domain of allKnownBankDomains) {
-    if (cleanFrom.includes(`@${domain}`) || cleanFrom.includes(`.${domain}`)) {
+  for (const trusted of allKnownBankDomains) {
+    if (matchesTrustedDomain(domain, trusted)) {
       return true;
     }
   }
@@ -348,6 +364,45 @@ function findOrderIndex(tokenOrRef, sellerId = null) {
 function findOrderByTokenOrRef(tokenOrRef) {
   const idx = findOrderIndex(tokenOrRef);
   return idx !== -1 ? ordersStore[idx] : null;
+}
+
+// Strictly allowlisted public order representation for customer checkout
+// Never exposes internal staff notes, merchant passwords, tokens, or PII
+function sanitizePublicOrder(order) {
+  if (!order) return null;
+  const payableAmount = order.payableAmount !== undefined ? order.payableAmount : (order.amount || 0);
+  return {
+    token: order.token || '',
+    checkoutToken: order.token || '',
+    ref: order.storeRef || order.ref || '',
+    invoiceId: order.invoiceId || '',
+    brandName: order.brandName || '',
+    brandCategory: order.brandCategory || '',
+    brandColor: order.brandColor || '#4f46e5',
+    brandLogo: order.brandLogo || null,
+    storeLocation: order.storeLocation || '',
+    storeInstagram: order.storeInstagram || '',
+    assuranceText: order.assuranceText || '',
+    itemDescription: order.itemDescription || '',
+    amount: order.amount || 0,
+    payableAmount,
+    currency: order.currency || 'INR',
+    status: order.status || 'PENDING',
+    paymentStatus: order.paymentStatus || (order.status === 'PAID' ? 'CONFIRMED' : (order.customerReportedUtr ? 'AWAITING_CONFIRMATION' : 'AWAITING_PAYMENT')),
+    paymentMethod: order.paymentMethod || null,
+    paidAt: order.paidAt || null,
+    upiId: order.upiId || '',
+    upiIntentUrl: order.upiIntentUrl || '',
+    address: order.address || null,
+    customerName: order.customerName ? maskName(order.customerName) : '',
+    customerPhone: order.customerPhone ? maskPhone(order.customerPhone) : '',
+    productImage: order.productImage || null,
+    sku: order.sku || '',
+    isOutOfStock: Boolean(order.isOutOfStock),
+    steps: order.steps || {},
+    currentStep: order.currentStep || 'WAITING_FOR_USER',
+    createdAt: order.createdAt || ''
+  };
 }
 
 // Password Hashing with Node crypto (scrypt)
@@ -1266,9 +1321,10 @@ function decrementProductStockOnPayment(order) {
 
 // Create a new Sale / Payment Link (Auth Required)
 app.post('/api/orders', requireAuth, (req, res) => {
-  const { customerName = '', customerPhone = '', itemDescription, itemDesc, amount, notes = '', customerNotes = '', sku = '', saveToCatalog = false } = req.body;
+  const { customerName = '', customerPhone = '', itemDescription, itemDesc, amount, notes = '', internalNotes = '', customerNotes = '', customerInstructions = '', sku = '', saveToCatalog = false } = req.body;
   const desc = (itemDescription || itemDesc || '').trim();
-  const note = (notes || customerNotes || '').trim();
+  const staffNotes = sanitizeInput((internalNotes || notes || '').trim());
+  const custInstructions = sanitizeInput((customerInstructions || customerNotes || '').trim());
 
   if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0 || !desc) {
     return res.status(400).json({ error: 'Valid positive Amount and Item Description are required.' });
@@ -1389,7 +1445,9 @@ app.post('/api/orders', requireAuth, (req, res) => {
     amount: baseAmt,
     payableAmount: payableAmt,
     currency: 'INR',
-    notes: note,
+    internalNotes: staffNotes,
+    customerInstructions: custInstructions,
+    notes: staffNotes, // Retained for staff dashboard display
     upiId: vpa,
     upiIntentUrl,
     status: 'PENDING',
@@ -1658,40 +1716,9 @@ app.get('/api/orders/:tokenOrRef', (req, res) => {
     res.json(fullOrder);
   } else {
     // Public checkout view (unauthenticated / stranger scraping): Mask sensitive customer PII
-    const maskedOrder = {
-      token: order.token,
-      checkoutToken: order.token,
-      ref: order.ref,
-      storeRef: order.ref,
-      invoiceId: order.invoiceId,
-      brandName: order.brandName,
-      brandCategory: order.brandCategory,
-      brandColor: order.brandColor,
-      ...storeBranding,
-      customerName: maskName(order.customerName),
-      customerPhone: maskPhone(order.customerPhone),
-      itemDescription: order.itemDescription,
-      amount: order.amount,
-      payableAmount: order.payableAmount,
-      currency: order.currency,
-      notes: order.notes,
-      sku: order.sku,
-      upiId: order.upiId,
-      upiIntentUrl: order.upiIntentUrl,
-      status: order.status,
-      paidAt: order.paidAt,
-      utr: order.utr,
-      paymentMethod: order.paymentMethod,
-      address: order.address ? maskAddress(order.address) : null,
-      steps: order.steps,
-      currentStep: order.currentStep,
-      createdAt: order.createdAt,
-      sellerPhone: maskPhone((seller && seller.phone) || order.sellerPhone || ''),
-      storePhone: maskPhone((seller && seller.phone) || order.sellerPhone || ''),
-      productImage: (matchedProduct && matchedProduct.image) || order.productImage || null,
-      isOutOfStock,
-      currentStock: matchedProduct ? matchedProduct.stock : null
-    };
+    // SECURITY: Internal staff notes are NEVER leaked to public checkout!
+    const maskedOrder = sanitizePublicOrder(order);
+    maskedOrder.storePhone = maskPhone((seller && seller.phone) || order.sellerPhone || '');
     maskedOrder.order = { ...maskedOrder };
     res.json(maskedOrder);
   }
@@ -1732,7 +1759,7 @@ app.post('/api/orders/:tokenOrRef/event', (req, res) => {
     }, 1000);
   }
 
-  res.json({ success: true, order });
+  res.json({ success: true, order: sanitizePublicOrder(order) });
 });
 
 // Customer saves shipping address
@@ -1740,6 +1767,11 @@ app.post('/api/orders/:tokenOrRef/address', (req, res) => {
   const orderIndex = findOrderIndex(req.params.tokenOrRef);
   if (orderIndex === -1) {
     return res.status(404).json({ error: 'Order not found.' });
+  }
+
+  // Freeze address if order is already packed, shipped, or delivered
+  if (['PACKED', 'SHIPPED', 'DELIVERED'].includes(ordersStore[orderIndex].dispatchStatus)) {
+    return res.status(400).json({ error: 'Order has already been prepared or shipped. Delivery address cannot be modified online. Please contact the boutique directly on WhatsApp.' });
   }
 
   const { fullName, phone, flat, street, landmark = '', pincode, city, state } = req.body;
@@ -1794,8 +1826,7 @@ app.post('/api/orders/:tokenOrRef/address', (req, res) => {
   res.json({
     success: true,
     message: 'Shipping address saved successfully.',
-    customerSessionKey: ordersStore[orderIndex].customerSessionKey,
-    order: ordersStore[orderIndex]
+    order: sanitizePublicOrder(ordersStore[orderIndex])
   });
 });
 
@@ -1844,7 +1875,7 @@ app.post('/api/orders/:tokenOrRef/utr', utrLimiter, (req, res) => {
     return res.status(400).json({ error: 'This item has just been claimed by another customer and is currently out of stock. Please contact the store on WhatsApp.' });
   }
 
-  // Fallback Match: Check if this 12-digit UTR matches an unallocated credit received for this store
+  // Fallback Match: Check if this 12-digit UTR matches an unallocated verified credit received for this store
   const payableAmt = order.payableAmount !== undefined ? order.payableAmount : order.amount;
   const creditIdx = unmatchedCreditsStore.findIndex(c => 
     c.utr === cleanUtr && 
@@ -1852,21 +1883,40 @@ app.post('/api/orders/:tokenOrRef/utr', utrLimiter, (req, res) => {
     Math.abs(c.amount - payableAmt) < 0.01
   );
 
-  let verifiedReason = 'Manual 12-digit UTR verification by customer';
-  let verifiedVia = 'customer_utr';
-  if (creditIdx !== -1) {
-    verifiedReason = `Bank email alert confirmed via customer 12-digit UTR match (${order.brandName})`;
-    verifiedVia = 'bank_email_matched_by_utr';
-    unmatchedCreditsStore.splice(creditIdx, 1);
-    saveJSON(UNMATCHED_CREDITS_FILE, unmatchedCreditsStore);
+  const now = new Date().toISOString();
+
+  // SECURITY FIX: If no matching bank credit exists, customer input records a payment report ONLY.
+  // It MUST NEVER automatically confirm an order as PAID or decrement inventory without bank verification!
+  if (creditIdx === -1) {
+    ordersStore[orderIndex].customerReportedUtr = cleanUtr;
+    ordersStore[orderIndex].customerReportedAt = now;
+    ordersStore[orderIndex].paymentStatus = 'AWAITING_CONFIRMATION';
+    saveJSON(ORDERS_FILE, ordersStore);
+
+    // Fast-trigger banking inbox check in background in case bank alert is currently in transit
+    setTimeout(() => { triggerBankingPoller(); }, 500);
+
+    return res.status(202).json({
+      success: true,
+      verified: false,
+      status: 'AWAITING_CONFIRMATION',
+      message: 'Payment reported with reference ' + cleanUtr + '. Verifying credit with bank...',
+      order: sanitizePublicOrder(ordersStore[orderIndex])
+    });
   }
+
+  // Authoritative Bank Match Found: Confirm payment
+  const verifiedReason = `Bank email alert confirmed via customer 12-digit UTR match (${order.brandName})`;
+  const verifiedVia = 'bank_email_matched_by_utr';
+  unmatchedCreditsStore.splice(creditIdx, 1);
+  saveJSON(UNMATCHED_CREDITS_FILE, unmatchedCreditsStore);
 
   normalizeOrderSteps(ordersStore[orderIndex]);
 
-  const now = new Date().toISOString();
   ordersStore[orderIndex].status = 'PAID';
+  ordersStore[orderIndex].paymentStatus = 'CONFIRMED';
   ordersStore[orderIndex].utr = cleanUtr;
-  ordersStore[orderIndex].paymentMethod = creditIdx !== -1 ? 'Direct UPI (Bank Alert + Customer UTR)' : 'Direct UPI (Customer Verified UTR)';
+  ordersStore[orderIndex].paymentMethod = 'Direct UPI (Bank Alert + Customer UTR)';
   ordersStore[orderIndex].paymentRef = `utr_${cleanUtr}`;
   ordersStore[orderIndex].paidAt = now;
   ordersStore[orderIndex].verifiedVia = verifiedVia;
@@ -1899,8 +1949,9 @@ app.post('/api/orders/:tokenOrRef/utr', utrLimiter, (req, res) => {
 
   res.json({
     success: true,
-    message: 'Payment verified successfully with UTR.',
-    order: ordersStore[orderIndex]
+    verified: true,
+    message: 'Payment verified successfully with bank credit record.',
+    order: sanitizePublicOrder(ordersStore[orderIndex])
   });
 });
 
@@ -2073,6 +2124,14 @@ function parseBankEmail(emailPayload) {
     }
   }
 
+  // Direction classification (Positive Credit vs Outbound Debit)
+  const isExplicitDebit = /\b(debited|debit|spent|withdrawn|paid to|transferred to|sent to|deducted)\b/i.test(cleanText);
+  const isExplicitCredit = /\b(credited|credit|received|deposited|inward|has credited|has received)\b/i.test(cleanText);
+
+  // If email explicitly mentions debit or payment made by user, it cannot be an incoming customer payment!
+  const isCredit = isExplicitCredit && !isExplicitDebit;
+  const isDebit = isExplicitDebit;
+
   return {
     from,
     amount,
@@ -2080,6 +2139,8 @@ function parseBankEmail(emailPayload) {
     orderRef,
     token,
     payerName,
+    isCredit,
+    isDebit,
     rawText: cleanText.substring(0, 400)
   };
 }
@@ -2088,6 +2149,16 @@ function parseBankEmail(emailPayload) {
 function processBankCreditForStore(sellerId, parsed, fromAddress) {
   const seller = sellersStore.find(s => s.id === sellerId);
   if (!seller) return { success: false, reason: 'Store not found.' };
+
+  // Strict Direction Check: Reject debit/spending alerts immediately
+  if (parsed.isDebit || !parsed.isCredit) {
+    console.warn(`[Bank Alert Rejected] Alert classified as debit/withdrawal or non-credit transaction for "${seller.brandName}". Ignoring.`);
+    return {
+      success: false,
+      ignored: true,
+      reason: 'Transaction is a debit notification or non-credit transaction. Outbound debits cannot settle customer sales.'
+    };
+  }
 
   // Strict Anti-Spoofing Check: Verify sender address
   if (fromAddress) {
@@ -2199,8 +2270,8 @@ function processBankCreditForStore(sellerId, parsed, fromAddress) {
     };
   }
 
-  // Confirm order
-  const orderIndex = ordersStore.findIndex(o => o.token === matchedOrder.token || o.ref === matchedOrder.ref);
+  // Confirm order strictly within the matched seller scope using immutable order ID
+  const orderIndex = ordersStore.findIndex(o => o.id === matchedOrder.id && o.sellerId === seller.id);
 
   // Anti-fraud / anti-replay: ensure bank alert UTR has not already been claimed by another paid order
   if (parsed.utr) {
@@ -2436,8 +2507,26 @@ function getGoogleOAuthRedirectUri(req) {
   return `${proto}://${host}/api/auth/google/callback`;
 }
 
-// Admin API to view / update Google OAuth Client credentials for the platform (Owner Only)
-app.get('/api/admin/oauth-config', requireOwner, (req, res) => {
+// Helper middleware: Platform super-admin privilege check
+function requirePlatformAdmin(req, res, next) {
+  const masterKey = process.env.ADMIN_SECRET || process.env.ENCRYPTION_KEY;
+  const providedKey = req.headers['x-admin-key'] || req.query.admin_key;
+  if (masterKey && providedKey && providedKey === masterKey) {
+    return next();
+  }
+  // Authenticate owner session
+  requireOwner(req, res, () => {
+    // Only designated platform admin email or first account may configure platform-wide credentials
+    const adminEmail = (process.env.PLATFORM_ADMIN_EMAIL || 'kaveri@atelier.com').toLowerCase();
+    if (req.seller && req.seller.email && req.seller.email.toLowerCase() === adminEmail) {
+      return next();
+    }
+    return res.status(403).json({ error: 'Access denied. Platform super-administrator privilege required to configure global OAuth credentials.' });
+  });
+}
+
+// Admin API to view / update Google OAuth Client credentials for the platform (Super-Admin Only)
+app.get('/api/admin/oauth-config', requirePlatformAdmin, (req, res) => {
   const creds = getGoogleCredentials();
   res.json({
     configured: Boolean(creds.clientId && creds.clientSecret),
@@ -2446,7 +2535,7 @@ app.get('/api/admin/oauth-config', requireOwner, (req, res) => {
   });
 });
 
-app.post('/api/admin/oauth-config', requireOwner, (req, res) => {
+app.post('/api/admin/oauth-config', requirePlatformAdmin, (req, res) => {
   const { clientId, clientSecret } = req.body;
   if (!clientId || !clientSecret) {
     return res.status(400).json({ error: 'Both Google Client ID and Client Secret are required.' });
@@ -2933,15 +3022,17 @@ async function scheduleAdaptiveBankingPoller() {
 // Start adaptive banking poller
 setTimeout(scheduleAdaptiveBankingPoller, 1500);
 
-// Simulator endpoint for testing bank email webhook in UI (AUTH REQUIRED - Owner only in production)
+// Simulator endpoint for testing bank email webhook in UI (Development only)
 app.post('/api/webhook/simulate-bank-email', (req, res) => {
-  // In production, require authentication to prevent abuse
+  // SECURITY FIX: Simulation endpoints are completely disabled in production environments
   if (process.env.NODE_ENV === 'production') {
-    const authToken = extractToken(req);
-    const seller = getSellerByToken(authToken);
-    if (!seller || seller.currentRole !== 'OWNER') {
-      return res.status(403).json({ error: 'Simulation endpoint requires store owner authentication in production.' });
-    }
+    return res.status(403).json({ error: 'Simulation endpoints are disabled in production mode.' });
+  }
+
+  const authToken = extractToken(req);
+  const seller = getSellerByToken(authToken);
+  if (!seller) {
+    return res.status(401).json({ error: 'Authentication required for simulation.' });
   }
 
   const { ref, token, amount, utr, bankName = 'HDFC Bank', simulateCollision = false } = req.body;
@@ -2949,10 +3040,15 @@ app.post('/api/webhook/simulate-bank-email', (req, res) => {
     return res.status(400).json({ error: 'Order ref, token, or amount is required.' });
   }
 
+  // Strictly scope simulation to the authenticated seller's orders
+  const order = ordersStore.find(o => o.sellerId === seller.id && ((token && o.token === token) || (ref && (o.ref === ref || o.token === ref))));
+  if ((token || ref) && !order) {
+    return res.status(404).json({ error: 'Order not found in your store catalog.' });
+  }
+
   const generatedUtr = utr || `43${Math.floor(1000000000 + Math.random() * 9000000000)}`;
-  const order = ordersStore.find(o => (token && o.token === token) || (ref && (o.ref === ref || o.token === ref)));
   const orderAmount = order ? (order.payableAmount || order.amount) : parseFloat(amount);
-  const storeName = order ? order.brandName : 'Store';
+  const storeName = order ? order.brandName : seller.brandName;
 
   let emailBody;
   if (simulateCollision) {
