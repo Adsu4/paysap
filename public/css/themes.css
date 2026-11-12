@@ -1,0 +1,62 @@
+/* Brand color overrides only. Rounded surfaces, gloss, layout, and factual status colors remain intact. */
+html[data-paysap-theme] body { background-color: var(--theme-canvas) !important; color: var(--theme-ink); }
+html[data-paysap-theme] :is(button, a, input, select, textarea, summary):focus-visible {
+  outline-color: var(--theme-primary) !important;
+}
+html[data-paysap-theme] :is(input, select, textarea) { accent-color: var(--theme-primary); }
+html[data-paysap-theme] ::selection { background: var(--theme-soft); color: var(--theme-primary-hover); }
+
+html[data-paysap-theme] :is(.text-indigo-500, .text-indigo-600, .text-indigo-700, .text-indigo-800, .text-indigo-900, .text-indigo-950,
+  .text-purple-500, .text-purple-600, .text-purple-700, .text-violet-500, .text-violet-600, .text-violet-700) {
+  color: var(--theme-primary) !important;
+}
+html[data-paysap-theme] :is(.bg-indigo-500, .bg-indigo-600, .bg-indigo-700, .bg-purple-500, .bg-purple-600, .bg-violet-600) {
+  background-color: var(--theme-primary) !important;
+}
+html[data-paysap-theme] :is(.bg-indigo-50, .bg-indigo-100, .bg-purple-50, .bg-purple-100, .bg-violet-50,
+  [class~="bg-indigo-50/50"], [class~="bg-indigo-50/60"], [class~="bg-indigo-50/80"]) {
+  background-color: var(--theme-soft) !important;
+}
+html[data-paysap-theme] :is(.border-indigo-100, .border-indigo-200, .border-indigo-300, .border-purple-100, .border-purple-200,
+  .border-violet-100, .border-violet-200) { border-color: var(--theme-border) !important; }
+html[data-paysap-theme] :is(.border-indigo-500, .border-indigo-600, .border-purple-500) { border-color: var(--theme-primary) !important; }
+html[data-paysap-theme] :is([class~="hover:bg-indigo-600"], [class~="hover:bg-indigo-700"], [class~="hover:bg-indigo-800"],
+  [class~="hover:bg-purple-700"], [class~="hover:bg-violet-700"]):hover { background-color: var(--theme-primary-hover) !important; }
+html[data-paysap-theme] :is([class~="hover:bg-indigo-50"], [class~="hover:bg-indigo-100"]):hover { background-color: var(--theme-soft) !important; }
+html[data-paysap-theme] :is([class~="hover:text-indigo-700"], [class~="hover:text-indigo-800"], [class~="hover:text-indigo-900"]):hover { color: var(--theme-primary-hover) !important; }
+html[data-paysap-theme] :is([class~="focus:border-indigo-500"]):focus,
+html[data-paysap-theme] :is([class~="focus-within:border-indigo-500"]):focus-within { border-color: var(--theme-primary) !important; }
+html[data-paysap-theme] :is([class~="focus:ring-indigo-100"], [class~="focus:ring-indigo-500"]):focus,
+html[data-paysap-theme] [class~="focus-within:ring-indigo-100"]:focus-within { --tw-ring-color: var(--theme-border); }
+html[data-paysap-theme] :is([class~="shadow-indigo-600/20"], [class~="shadow-indigo-500/20"], [class~="shadow-purple-500/20"]) {
+  --tw-shadow-color: rgba(var(--theme-primary-rgb), .2);
+}
+
+/* Shared app surfaces retain their existing shape and translucent/glossy treatment. */
+html[data-paysap-theme] :is(#appShell, #kpiRibbon, #headerMasterNav, #builderCard, #readyRailCard, .ops-panel, .payment-dialog) {
+  border-color: var(--theme-border) !important;
+}
+html[data-paysap-theme] :is(#appShell, #kpiRibbon, .ops-panel, .payment-dialog) { background-color: var(--theme-surface) !important; }
+html[data-paysap-theme] #headerMasterNav { background-color: rgba(255, 255, 255, .93) !important; }
+html[data-paysap-theme] #headerMasterNav button[aria-current="page"] { color: var(--theme-primary) !important; border-color: var(--theme-border) !important; }
+html[data-paysap-theme] :is(#builderCard, #readyRailCard, .reports-details) {
+  background: linear-gradient(145deg, var(--theme-soft), var(--theme-surface)) !important;
+}
+html[data-paysap-theme] :is(.primary-action, .btn-primary, #btnSubmitGenerate) {
+  color: #fff !important; background: linear-gradient(180deg, rgba(255, 255, 255, .06), transparent 65%), var(--theme-primary) !important; border-color: var(--theme-primary) !important;
+  box-shadow: 0 5px 15px rgba(var(--theme-primary-rgb), .2) !important;
+}
+html[data-paysap-theme] :is(.primary-action, .btn-primary, #btnSubmitGenerate):hover { background: var(--theme-primary-hover) !important; }
+html[data-paysap-theme] :is(#catalogSearchResults button:hover, #catalogSearchResults button:focus, #preGenerateNotice, .order-context) { background-color: var(--theme-soft) !important; }
+html[data-paysap-theme] .ops-card:nth-child(3) { background: linear-gradient(135deg, var(--theme-soft), var(--theme-surface)); border-color: var(--theme-border); }
+html[data-paysap-theme] .ops-card:nth-child(3) strong { color: var(--theme-primary); }
+html[data-paysap-theme] .ops-card:not(.ops-review):not(:nth-child(2)):not(:nth-child(4)) .ops-label .material-symbols-outlined {
+  color: var(--theme-primary); background: var(--theme-soft); border-color: var(--theme-border);
+}
+
+/* Checkout aliases also support its small standalone stylesheet. */
+html[data-paysap-theme] .notice:not(.notice-error):not(.notice-review) { background: var(--theme-soft); border-color: var(--theme-border); color: var(--theme-primary-hover); }
+html[data-paysap-theme] .state-icon { background: var(--theme-soft); color: var(--theme-primary); }
+html[data-paysap-theme] .spinner { border-color: var(--theme-border); border-top-color: var(--theme-primary); }
+html[data-paysap-theme] .phone-input:focus-within,
+html[data-paysap-theme] :is(input, select, textarea):focus { border-color: var(--theme-primary); }

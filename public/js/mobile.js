@@ -42,11 +42,11 @@
       ${navBtn('sell', 'point_of_sale', 'Sell')}
       ${navBtn('followup', 'local_fire_department', 'Follow-up', 'mNavFollowBadge')}
       <div class="px-2">
-        <button type="button" data-mnav="new" class="w-12 h-12 -mt-5 rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center cursor-pointer active:scale-95 border-2 border-white" title="New sale">
+        <button type="button" data-mnav="new" class="w-12 h-12 -mt-5 rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center cursor-pointer active:scale-95 border-2 border-white" title="New order" aria-label="New order">
           <span class="material-symbols-outlined text-[24px]">add</span>
         </button>
       </div>
-      ${navBtn('orders', 'receipt_long', 'Orders')}
+      ${navBtn('orders', 'receipt_long', 'My orders')}
       ${hasStock ? navBtn('stock', 'inventory_2', 'Stock') : navBtn('paid', 'task_alt', 'Paid')}
     `;
 

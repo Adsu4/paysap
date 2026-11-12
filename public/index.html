@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+  <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
   <meta name="theme-color" content="#4f46e5"/>
   <meta content="web_standard" name="shell-type"/>
-  <title>PaySap • Sales Studio &amp; Master Dashboard</title>
+  <title>PaySap • Your store workspace</title>
   <link href="https://fonts.googleapis.com" rel="preconnect"/>
   <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
@@ -33,32 +33,15 @@
       display: none !important;
     }
   </style>
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-  <script>
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-          },
-          colors: {
-            brand: {
-              50: '#eef2ff',
-              100: '#e0e7ff',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
-            },
-            canvas: '#ebe9f7',
-          }
-        }
-      }
-    };
-  </script>
+  <link rel="stylesheet" href="/css/tailwind.css"/>
   <link rel="stylesheet" href="/css/mobile.css"/>
+  <link rel="stylesheet" href="/css/app.css"/>
+  <link rel="stylesheet" href="/css/themes.css"/>
+  <link rel="stylesheet" href="/css/orders-board.css"/>
+  <script src="/js/themes.js"></script>
 </head>
 <body class="bg-[#ebe9f7] min-h-screen text-slate-800 antialiased py-6 sm:py-10 px-3 sm:px-6 flex flex-col items-center justify-start selection:bg-indigo-100 selection:text-indigo-900">
+  <a href="#appShell" class="skip-link">Skip to workspace</a>
   
   <!-- Hidden anchor for topStorePill legacy JS references -->
   <span id="topStorePill" class="hidden"></span>
@@ -83,52 +66,49 @@
 
     <!-- Center: Streamlined Navigation Tabs (Desktop, Hidden on Mobile) -->
     <nav id="headerMasterNav" class="hidden md:flex items-center gap-1 bg-white/90 backdrop-blur-md p-1.5 rounded-full border border-slate-200/80 shadow-xs text-xs font-semibold">
-      <button id="mTabBtnStudio" onclick="switchToStudioCockpit()" type="button" class="px-3.5 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100/70 transition-colors cursor-pointer font-bold flex items-center gap-1.5">
+      <button id="mTabBtnStudio" data-click="switchToStudioCockpit" type="button" class="px-3.5 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100/70 transition-colors cursor-pointer font-bold flex items-center gap-1.5">
         <span class="material-symbols-outlined text-[16px] text-indigo-600">bolt</span>
-        <span>New Sale</span>
+        <span>New order</span>
       </button>
-      <button id="mTabBtnDispatch" onclick="setMasterTab('dispatch')" type="button" class="px-3.5 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5">
+      <button id="mTabBtnDispatch" data-click="setMasterTab" data-arg="dispatch" type="button" class="px-3.5 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5">
         <span class="material-symbols-outlined text-[16px] text-indigo-600">receipt_long</span>
-        <span id="navOrdersLabel">Orders &amp; Dispatch</span>
+        <span id="navOrdersLabel">Orders</span>
       </button>
-      <button id="mTabBtnOverview" onclick="setMasterTab('overview')" type="button" class="px-3.5 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5">
+      <button id="mTabBtnOverview" data-click="setMasterTab" data-arg="overview" type="button" class="px-3.5 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5">
         <span class="material-symbols-outlined text-[16px] text-indigo-600">group</span>
-        <span>Team &amp; Funnel</span>
+        <span>Home</span>
       </button>
-      <button id="mTabBtnInventory" onclick="setMasterTab('inventory')" type="button" class="px-3.5 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5">
+      <button id="mTabBtnInventory" data-click="setMasterTab" data-arg="inventory" type="button" class="px-3.5 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5">
         <span class="material-symbols-outlined text-[16px] text-indigo-600">inventory_2</span>
-        <span>Stock CRM</span>
+        <span>Inventory</span>
       </button>
-      <button id="mTabBtnSettings" onclick="setMasterTab('settings')" type="button" class="px-3.5 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5">
+      <button id="mTabBtnSettings" data-click="setMasterTab" data-arg="settings" type="button" class="px-3.5 py-1.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5">
         <span class="material-symbols-outlined text-[16px] text-indigo-600">settings</span>
         <span>Settings</span>
       </button>
     </nav>
     <!-- Hidden fallback for mBtnQuickSale -->
-    <button id="mBtnQuickSale" onclick="switchToStudioCockpit()" type="button" class="hidden"></button>
+    <button id="mBtnQuickSale" data-click="switchToStudioCockpit" type="button" class="hidden"></button>
 
     <!-- Right: User Role Capsule & Logout -->
     <div class="order-2 lg:order-3 flex items-center gap-2 sm:gap-3">
       <!-- User Role Capsule -->
-      <div class="flex items-center gap-2 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl p-1.5 pr-3 shadow-2xs">
-        <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-xs shadow-inner overflow-hidden" id="headerAvatar">
-          PS
-        </div>
-        <div class="text-left hidden sm:block">
+      <div id="headerAccountDetails" class="flex items-center gap-2 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl px-3 py-2 shadow-2xs">
+        <div id="headerAccountText" class="text-left">
           <span class="text-xs font-bold text-slate-900 block leading-tight truncate max-w-[140px]" id="headerRoleBadge">Loading...</span>
           <span class="text-[10px] text-slate-400 font-mono block leading-tight truncate max-w-[140px]" id="headerUpiId">direct@upi</span>
         </div>
       </div>
 
       <!-- Logout Button -->
-      <button type="button" onclick="handleLogout()" class="w-8 h-8 rounded-full bg-white/95 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer shadow-2xs" title="Sign Out">
+      <button type="button" data-click="handleLogout" class="w-8 h-8 rounded-full bg-white/95 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer shadow-2xs" title="Sign out" aria-label="Sign out">
         <span class="material-symbols-outlined text-[17px]">logout</span>
       </button>
     </div>
   </header>
 
   <!-- Main Floating App Container -->
-  <div id="appShell" class="w-full max-w-7xl bg-white rounded-2xl sm:rounded-3xl shadow-xl shadow-slate-900/5 border border-slate-200/80 p-4 sm:p-6 lg:p-7 flex flex-col gap-5 sm:gap-6 pb-24 md:pb-8">
+  <main id="appShell" tabindex="-1" class="w-full max-w-7xl bg-white rounded-2xl sm:rounded-3xl shadow-xl shadow-slate-900/5 border border-slate-200/80 p-4 sm:p-6 lg:p-7 flex flex-col gap-5 sm:gap-6 pb-24 md:pb-8">
 
     <!-- Compact Top KPI Stat Ribbon (Space-Saving, Zero-Scroll) -->
     <section id="kpiRibbon" class="bg-white rounded-2xl border border-slate-200/80 px-4 py-2.5 shadow-2xs flex items-center justify-between gap-3 text-xs overflow-x-auto scrollbar-none">
@@ -139,12 +119,12 @@
         </div>
         <span class="text-slate-200">|</span>
         <div class="flex items-center gap-1.5">
-          <span class="text-slate-400 font-medium" id="kpiRevenueLabel">Gross Revenue:</span>
+          <span class="text-slate-400 font-medium" id="kpiRevenueLabel">Received:</span>
           <span class="font-extrabold text-slate-900" id="kpiRevenue">₹0.00</span>
         </div>
         <span class="text-slate-200">|</span>
         <div class="flex items-center gap-1.5">
-          <span class="text-slate-400 font-medium">Settled:</span>
+          <span class="text-slate-400 font-medium">Paid:</span>
           <span class="font-extrabold text-emerald-600" id="kpiPaidCount">0 (0%)</span>
         </div>
       </div>
@@ -165,11 +145,11 @@
           <div>
             <h2 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
               <span class="material-symbols-outlined text-indigo-600 text-[22px]">bolt</span>
-              <span>Fast Sale Creator</span>
+              <span>New order</span>
             </h2>
-            <p class="text-xs text-slate-500 mt-0.5">Generate direct UPI payment link &amp; WhatsApp pitch in 3 seconds.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Create a checkout link. Share it when you’re ready.</p>
           </div>
-          <span class="px-3 py-1 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-700 shadow-2xs" id="nextRefBadge">
+          <span class="px-3 py-1 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-700 shadow-2xs next-ref-badge" id="nextBuilderRef">
             Next Ref: #101
           </span>
         </div>
@@ -180,47 +160,76 @@
             <label class="text-xs font-bold text-slate-700 flex items-center justify-between" for="custPhone">
               <span class="flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px] text-emerald-600">chat</span>
-                <span>Customer WhatsApp Phone *</span>
+                <span>WhatsApp number *</span>
               </span>
               <span class="text-[10px] text-slate-400 font-medium">10-digit mobile number</span>
             </label>
             <div class="flex items-center bg-white border border-slate-200 rounded-2xl px-3.5 py-1.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition-all shadow-2xs">
               <span class="text-xs font-bold text-slate-500 pr-2 select-none border-r border-slate-200 mr-2 py-1">+91</span>
-              <input class="w-full bg-transparent text-slate-900 text-sm py-1.5 outline-none font-bold placeholder:text-slate-400 placeholder:font-normal font-mono" id="custPhone" placeholder="98765 43210" required type="tel" inputmode="tel" pattern="[0-9]*" maxlength="10" value=""/>
+              <input class="w-full bg-transparent text-slate-900 text-sm py-1.5 outline-none font-bold placeholder:text-slate-400 placeholder:font-normal font-mono" id="custPhone" placeholder="98765 43210" required type="tel" inputmode="tel" autocomplete="tel-national" maxlength="16" value="" aria-describedby="draftStatus"/>
             </div>
           </div>
 
-          <!-- Field 2: Item Description / SKU Auto-Fill -->
+          <div id="catalogPicker">
+            <label for="productSearch" class="font-bold text-slate-700">Find a product</label>
+            <input id="productSearch" type="search" placeholder="Search name or SKU" autocomplete="off" aria-controls="catalogSearchResults" aria-expanded="false"/>
+            <div id="catalogSearchResults" class="hidden" aria-label="Matching products"></div>
+            <button type="button" class="text-indigo-600 text-xs font-semibold self-start" data-click="customItem">Or enter a custom item</button>
+          </div>
+          <!-- Product details remain editable after selection. -->
           <div class="flex flex-col gap-1.5">
             <div class="flex items-center justify-between">
               <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5" for="itemDesc">
                 <span class="material-symbols-outlined text-[16px] text-indigo-600">inventory_2</span>
-                <span>Product Item &amp; Description *</span>
+                <span>Item, size &amp; color *</span>
               </label>
-              <div class="flex items-center gap-1.5">
-                <span class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 cursor-pointer" onclick="document.getElementById('catalogSelect').focus()" id="catalogSyncBadge">Catalog Auto-fill</span>
+              <div class="hidden">
+                <span class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 cursor-pointer" data-click="focusCatalogSelect" id="catalogSyncBadge">Catalog Auto-fill</span>
               </div>
             </div>
 
             <!-- SKU Datalist & Input combined -->
-            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-              <div class="sm:col-span-4 flex items-center bg-white border border-slate-200 rounded-2xl px-3 py-1 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 shadow-2xs">
+            <div class="grid grid-cols-1 gap-2">
+              <div class="hidden">
                 <span class="text-xs font-bold text-slate-400 pr-1 select-none font-mono">#</span>
-                <input class="w-full bg-transparent text-slate-900 font-mono text-xs py-1.5 outline-none font-bold placeholder:text-slate-400 uppercase" id="itemSku" placeholder="SKU (e.g. PRD-101)" type="text" oninput="lookupSku(this.value)" list="skuDatalist"/>
+                <input class="w-full bg-transparent text-slate-900 font-mono text-xs py-1.5 outline-none font-bold placeholder:text-slate-400 uppercase" id="itemSku" placeholder="SKU (e.g. PRD-101)" type="text" data-input="lookupSku" list="skuDatalist"/>
                 <datalist id="skuDatalist"></datalist>
               </div>
-              <div class="sm:col-span-8 flex items-center bg-white border border-slate-200 rounded-2xl px-3.5 py-1 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 shadow-2xs">
+              <div class="flex items-center bg-white border border-slate-200 rounded-2xl px-3.5 py-1 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 shadow-2xs">
                 <input class="w-full bg-transparent text-slate-900 text-xs sm:text-sm py-1.5 outline-none font-semibold placeholder:text-slate-400" id="itemDesc" placeholder="e.g. Cotton Casual Shirt - Navy Blue" required type="text" value=""/>
               </div>
             </div>
 
             <!-- Catalog Dropdown (Fast Selection) -->
-            <select id="catalogSelect" onchange="handleCatalogSelect(this.value)" class="w-full bg-white border border-slate-200 focus:border-indigo-500 text-slate-700 text-xs rounded-xl px-3 py-1.5 outline-none font-medium transition-all cursor-pointer">
+            <select id="catalogSelect" aria-label="Catalog product" data-change="handleCatalogSelect" class="hidden">
               <option value="">-- Quick select from Catalog (Optional) --</option>
             </select>
 
             <!-- Quick Catalog SKU Chips -->
-            <div class="flex items-center gap-1.5 flex-wrap pt-0.5" id="catalogQuickChips"></div>
+            <div class="hidden" id="catalogQuickChips"></div>
+
+            <!-- Optional Multi-Item Breakdown Trigger & List -->
+            <div class="flex items-center justify-between pt-0.5">
+              <button type="button" id="btnAddLineItem" data-click="addOrderLineItem" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 inline-flex items-center gap-1 cursor-pointer">
+                <span class="material-symbols-outlined text-[14px]">playlist_add</span>
+                <span>+ Add multiple items / shipping / discount</span>
+              </button>
+              <span id="orderBreakdownSummary" class="text-[11px] font-mono font-bold text-slate-500"></span>
+            </div>
+
+            <div id="orderLineItemsSection" class="hidden flex flex-col gap-2 p-3 rounded-2xl border border-indigo-100 bg-indigo-50/40">
+              <div id="orderLineItemsList" class="flex flex-col gap-1.5"></div>
+              <div class="grid grid-cols-2 gap-2 pt-1">
+                <label class="flex flex-col gap-0.5 text-[10px] font-bold text-slate-600">
+                  <span>Shipping (₹)</span>
+                  <input id="orderShippingAmount" type="number" min="0" step="0.01" placeholder="0" data-input="recomputeOrderLineItems" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono font-bold text-slate-900 outline-none focus:border-indigo-500"/>
+                </label>
+                <label class="flex flex-col gap-0.5 text-[10px] font-bold text-slate-600">
+                  <span>Discount (₹)</span>
+                  <input id="orderDiscountAmount" type="number" min="0" step="0.01" placeholder="0" data-input="recomputeOrderLineItems" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono font-bold text-slate-900 outline-none focus:border-indigo-500"/>
+                </label>
+              </div>
+            </div>
           </div>
 
           <!-- Field 3: Order Amount (₹ INR) -->
@@ -228,20 +237,20 @@
             <label class="text-xs font-bold text-slate-700 flex items-center justify-between" for="orderValue">
               <span class="flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px] text-emerald-600">payments</span>
-                <span>Amount to Settle (₹ INR) *</span>
+                <span>Order total *</span>
               </span>
-              <span class="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">0% Intermediary Fee</span>
+              <span class="text-xs text-slate-500 font-medium">INR · include delivery</span>
             </label>
             <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
               <div class="sm:col-span-6 flex items-center bg-white border border-slate-200 rounded-2xl px-4 py-2 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 shadow-2xs">
                 <span class="text-base font-extrabold text-slate-400 pr-1.5 select-none font-mono">₹</span>
-                <input class="w-full bg-transparent font-extrabold text-slate-900 text-lg outline-none placeholder:text-slate-400 font-mono" id="orderValue" placeholder="0.00" required step="1" type="number" inputmode="decimal" value=""/>
+                <input class="w-full bg-transparent font-extrabold text-slate-900 text-lg outline-none placeholder:text-slate-400 font-mono" id="orderValue" placeholder="0.00" required min="0.01" step="0.01" type="number" inputmode="decimal" value=""/>
               </div>
               <div class="sm:col-span-6 flex items-center gap-1.5 flex-wrap">
-                <button class="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-bold rounded-xl shadow-2xs transition-all cursor-pointer" onclick="adjustAmount(500)" type="button">+500</button>
-                <button class="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-bold rounded-xl shadow-2xs transition-all cursor-pointer" onclick="adjustAmount(1000)" type="button">+1,000</button>
-                <button class="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-bold rounded-xl shadow-2xs transition-all cursor-pointer" onclick="adjustAmount(2500)" type="button">+2,500</button>
-                <button class="px-2.5 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-all cursor-pointer" onclick="adjustAmount(5000)" type="button">+5,000</button>
+                <button class="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-bold rounded-xl shadow-2xs transition-all cursor-pointer" data-click="adjustAmount" data-arg="500" type="button">+500</button>
+                <button class="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-bold rounded-xl shadow-2xs transition-all cursor-pointer" data-click="adjustAmount" data-arg="1000" type="button">+1,000</button>
+                <button class="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-bold rounded-xl shadow-2xs transition-all cursor-pointer" data-click="adjustAmount" data-arg="2500" type="button">+2,500</button>
+                <button class="px-2.5 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-all cursor-pointer" data-click="adjustAmount" data-arg="5000" type="button">+5,000</button>
               </div>
             </div>
           </div>
@@ -251,7 +260,7 @@
             <summary class="font-bold text-slate-600 flex items-center justify-between cursor-pointer select-none">
               <span class="flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px] text-slate-400">tune</span>
-                <span>Optional Details (Customer Name, Notes, Save to Catalog)</span>
+                <span>Name &amp; order notes</span>
               </span>
               <span class="material-symbols-outlined text-[16px] text-slate-400 group-open:rotate-180 transition-transform">expand_more</span>
             </summary>
@@ -259,6 +268,10 @@
               <div class="flex flex-col gap-1">
                 <label class="text-[11px] font-semibold text-slate-600" for="custName">Customer Full Name</label>
                 <input class="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl px-3 py-2 outline-none font-medium placeholder:text-slate-400" id="custName" placeholder="e.g. Radhika Apte (Optional)" type="text" value=""/>
+              </div>
+              <div class="flex flex-col gap-1">
+                <label class="font-semibold text-slate-600" for="customerInstructions">Customer-visible instructions</label>
+                <textarea id="customerInstructions" rows="2" maxlength="1000" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2" placeholder="e.g. Alteration details agreed with the customer"></textarea>
               </div>
               <div class="flex flex-col gap-1">
                 <label class="text-[11px] font-semibold text-slate-600" for="internalNotes">Internal Staff Notes <span class="text-slate-400 font-normal">(Private — Never shown on bill)</span></label>
@@ -280,16 +293,17 @@
               <span class="material-symbols-outlined text-rose-600 text-[18px] shrink-0">production_quantity_limits</span>
               <span class="font-bold truncate" id="stockAlertText">Out of Stock: 0 units available. Cannot create order link.</span>
             </div>
-            <button id="btnQuickRestockAction" type="button" onclick="openRestockFromBuilder()" class="hidden px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold shrink-0 cursor-pointer shadow-xs">
+            <button id="btnQuickRestockAction" type="button" data-click="openRestockFromBuilder" class="hidden px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold shrink-0 cursor-pointer shadow-xs">
               + Restock
             </button>
           </div>
 
-          <!-- Primary Unified Action Button (Saves Order & Launches WhatsApp in 1 Tap) -->
+          <div id="createOrderError" class="hidden form-error" role="alert" tabindex="-1"></div>
           <button id="btnSubmitGenerate" class="mt-1 w-full h-12 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-sm rounded-2xl shadow-md shadow-emerald-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer" type="submit">
-            <span class="material-symbols-outlined text-[20px]">chat</span>
-            <span id="btnSubmitGenerateText">📲 Create &amp; Send via WhatsApp</span>
+            <span class="material-symbols-outlined text-[20px]">add_link</span>
+            <span id="btnSubmitGenerateText">Create checkout link</span>
           </button>
+          <p id="draftStatus" class="draft-status" role="status">Your customer won’t receive anything until you share the link.</p>
         </form>
       </div>
 
@@ -313,7 +327,7 @@
               <span class="material-symbols-outlined text-[17px] text-slate-400">link</span>
               <span class="text-xs font-mono font-medium text-slate-700 truncate select-all" id="displayUrl">Link auto-generates on click</span>
             </div>
-            <button class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors whitespace-nowrap cursor-pointer" id="linkBtn" onclick="copyCurrentLink()" type="button">
+            <button class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors whitespace-nowrap cursor-pointer" id="linkBtn" data-click="copyCurrentLink" type="button">
               Copy
             </button>
           </div>
@@ -321,10 +335,10 @@
           <!-- Live WhatsApp Pitch Preview -->
           <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs flex flex-col gap-2">
             <div class="flex items-center justify-between text-[11px] font-semibold text-slate-500">
-              <span>WhatsApp Pitch Preview</span>
-              <button type="button" id="copyPitchBtn" onclick="copyPitchText()" class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer">
+              <span>Message preview</span>
+              <button type="button" id="copyPitchBtn" data-click="copyPitchText" class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer">
                 <span class="material-symbols-outlined text-[14px]">content_copy</span>
-                <span>Copy Pitch</span>
+                <span>Copy message</span>
               </button>
             </div>
             <div class="p-3 bg-slate-50 rounded-xl text-xs text-slate-700 leading-relaxed border border-slate-100">
@@ -336,15 +350,15 @@
               <span id="charCount">0 chars</span>
               <span class="flex items-center gap-1 font-semibold text-emerald-600" id="stockStatusIndicator">
                 <span class="material-symbols-outlined text-[13px]">verified</span>
-                <span id="stockStatusText">Direct Settlement</span>
+                <span id="stockStatusText">Direct UPI</span>
               </span>
             </div>
           </div>
 
           <!-- Pre-generation notice -->
           <div id="preGenerateNotice" class="p-3 bg-indigo-50/60 border border-indigo-100 rounded-2xl text-center flex flex-col items-center gap-1">
-            <p class="text-xs font-bold text-indigo-950">1-Tap WhatsApp Automation</p>
-            <p class="text-[11px] text-slate-500">Submitting will automatically launch WhatsApp with your customer's pre-filled pitch and secure payment link.</p>
+            <p class="text-xs font-bold text-indigo-950">Create first. Share when ready.</p>
+            <p class="text-[11px] text-slate-500">Check the total and recipient, then open WhatsApp or copy your checkout link.</p>
           </div>
 
           <!-- Post-Generation Actions Card -->
@@ -358,24 +372,24 @@
             </div>
 
             <div class="grid grid-cols-2 gap-2">
-              <button class="h-10 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs" onclick="openWhatsAppDirect()" type="button">
+              <button class="h-10 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs" data-click="openWhatsAppDirect" type="button">
                 <span class="material-symbols-outlined text-[17px]">chat</span>
                 <span>Open WhatsApp</span>
               </button>
-              <button class="h-10 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs" onclick="shareCurrentOrderMobile()" type="button" title="Share via WhatsApp, Instagram, SMS">
+              <button class="h-10 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs" data-click="shareCurrentOrderMobile" type="button" title="Share via WhatsApp, Instagram, SMS">
                 <span class="material-symbols-outlined text-[17px]">share</span>
                 <span>Share Link</span>
               </button>
             </div>
 
             <div class="grid grid-cols-2 gap-2">
-              <button class="h-9 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-200/80" onclick="createNextSale()" type="button">
+              <button class="h-9 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-200/80" data-click="createNextSale" type="button">
                 <span class="material-symbols-outlined text-[16px]">add_circle</span>
                 <span>+ Next Customer</span>
               </button>
-              <button class="h-9 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs" onclick="activateTab(activeRefNumber)" type="button">
+              <button class="h-9 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs" data-click="activateActiveOrder" type="button">
                 <span class="material-symbols-outlined text-[16px]">radar</span>
-                <span>Track Cockpit →</span>
+                <span>View order →</span>
               </button>
             </div>
           </div>
@@ -384,27 +398,28 @@
         <!-- Hidden elements to preserve DOM contract with zero errors -->
         <div class="hidden">
           <div id="automationShortcuts"></div>
-          <button id="tabBtnNewSale" onclick="activateTab('NEW')"></button>
-          <button id="btnQueueFollowUp" onclick="switchActionQueue('FOLLOW_UP')"><span id="queueCountFollowUp">0</span></button>
-          <button id="btnQueueActive" onclick="switchActionQueue('ACTIVE')"><span id="queueCountActive">0</span></button>
-          <button id="btnQueueAwaiting" onclick="switchActionQueue('AWAITING')"><span id="queueCountAwaiting">0</span></button>
-          <button id="btnQueueClosed" onclick="switchActionQueue('CLOSED')"><span id="queueCountClosed">0</span></button>
+          <button id="tabBtnNewSale" data-click="activateTab" data-arg="NEW"></button>
+          <button id="btnQueueFollowUp" data-click="switchActionQueue" data-arg="FOLLOW_UP"><span id="queueCountFollowUp">0</span></button>
+          <button id="btnQueueActive" data-click="switchActionQueue" data-arg="ACTIVE"><span id="queueCountActive">0</span></button>
+          <button id="btnQueueAwaiting" data-click="switchActionQueue" data-arg="AWAITING"><span id="queueCountAwaiting">0</span></button>
+          <button id="btnQueueClosed" data-click="switchActionQueue" data-arg="CLOSED"><span id="queueCountClosed">0</span></button>
           <span id="tabSyncStatus"></span>
         </div>
 
       </div>
     </div>
 
-    <!-- Tab View 2: Live Customer Journey Radar Cockpit -->
+    <!-- Tab View 2: Order activity Cockpit -->
     <div id="viewSaleDetail" class="hidden flex flex-col gap-6">
+      <section id="orderReviewNotice" class="hidden ops-panel" aria-label="Order review"><div class="p-5"><h2 id="orderReviewTitle" class="font-bold text-slate-900"></h2><p id="orderReviewText" class="text-sm text-slate-600 mt-2"></p><div class="flex flex-wrap gap-2 mt-4"><button id="reviewConfirmPayment" type="button" class="primary-action">I checked the bank · confirm received</button><button id="reviewRecordRefund" type="button" class="primary-action" hidden>Record refund</button><button id="reviewCancelOrder" type="button" class="secondary-action">Cancel order</button></div></div></section>
       
       <!-- Back to Orders Bar -->
       <div class="flex items-center justify-between pb-1">
-        <button type="button" onclick="setMasterTab('dispatch')" class="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs">
+        <button type="button" data-click="setMasterTab" data-arg="dispatch" class="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs">
           <span class="material-symbols-outlined text-[16px]">arrow_back</span>
           <span>Back to Orders Board</span>
         </button>
-        <span class="text-xs font-semibold text-slate-500">Live Customer Radar</span>
+        <span class="text-xs font-semibold text-slate-500">Order details</span>
       </div>
 
       <!-- Compact Top Sale Command Bar (Zero-Scroll & Immediate WhatsApp Action) -->
@@ -423,7 +438,7 @@
               <span class="truncate max-w-xs" id="cockpitItemDesc">Order Specifications</span>
               <span>•</span>
               <span class="text-white font-extrabold" id="cockpitPayableAmount">₹0.00</span>
-              <span class="text-[10px] text-emerald-400 font-semibold flex items-center gap-1" id="cockpitPaiseBadge">
+              <span class="text-[10px] text-emerald-400 font-semibold flex items-center gap-1" id="cockpitLinkBadge">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active Link
               </span>
             </div>
@@ -432,19 +447,19 @@
 
         <!-- Action Quick Bar: Prominent WhatsApp Button is directly here after generating link! -->
         <div class="flex items-center gap-2 shrink-0 flex-wrap">
-          <button type="button" id="btnCockpitMarkPaid" onclick="markCockpitOrderPaid()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-600/20" title="Manually verify & mark PAID">
+          <button type="button" id="btnCockpitMarkPaid" data-click="markCockpitOrderPaid" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-600/20" title="Manually verify & mark PAID">
             <span class="material-symbols-outlined text-[16px]">check_circle</span>
             <span>Confirm Payment</span>
           </button>
-          <button type="button" onclick="openWhatsAppForCockpit()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-600/20">
+          <button type="button" data-click="openWhatsAppForCockpit" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-600/20">
             <span class="material-symbols-outlined text-[17px]">send</span>
             <span>WhatsApp</span>
           </button>
-          <button type="button" onclick="shareCurrentOrderMobile()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-indigo-600/20" title="Share via Apps">
+          <button type="button" data-click="shareCurrentOrderMobile" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-indigo-600/20" title="Share via Apps">
             <span class="material-symbols-outlined text-[16px]">share</span>
             <span>Share</span>
           </button>
-          <button type="button" onclick="copyCockpitLink()" id="btnCopyCockpitLink" class="px-3 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer">
+          <button type="button" data-click="copyCockpitLink" id="btnCopyCockpitLink" class="px-3 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer">
             <span class="material-symbols-outlined text-[16px]">content_copy</span>
             <span id="btnCopyCockpitLinkText">Copy</span>
           </button>
@@ -461,7 +476,7 @@
           <div>
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <h3 class="text-sm sm:text-base font-bold text-slate-900">Live Customer Journey Tracker</h3>
+              <h3 class="text-sm sm:text-base font-bold text-slate-900">Order activity</h3>
             </div>
             <p class="text-xs text-slate-500 mt-0.5">Real-time status updates as your customer interacts with the checkout link.</p>
           </div>
@@ -473,7 +488,7 @@
         <!-- Stepper Cards Grid (The 5 Retail Conversion Steps) -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-3" id="cockpitStepsContainer">
           
-          <!-- Step 1: Link Sent -->
+          <!-- Step 1: Link created -->
           <div class="step-card p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 bg-emerald-50/60 border-emerald-200" id="stepCard1">
             <div class="flex items-center justify-between">
               <div class="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold bg-emerald-100 text-emerald-700">
@@ -482,8 +497,8 @@
               <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">Step 1</span>
             </div>
             <div>
-              <h4 class="text-xs font-bold text-slate-900">Link Sent</h4>
-              <p class="text-[11px] text-slate-500 mt-0.5">Order link generated &amp; WhatsApp pitch dispatched.</p>
+              <h4 class="text-xs font-bold text-slate-900">Link created</h4>
+              <p class="text-[11px] text-slate-500 mt-0.5">Checkout link created. Delivery of a WhatsApp message is not tracked.</p>
             </div>
             <div class="pt-2 border-t border-emerald-100 text-[10px] text-emerald-700 font-semibold" id="step1Time">
               Done
@@ -575,7 +590,7 @@
             <h4 class="text-xs sm:text-sm font-bold text-slate-900">Order Fulfillment &amp; Doorstep Delivery Record</h4>
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-[11px] text-slate-500 font-semibold" id="spreadsheetSyncStatusBadge">Auto-synced</span>
+            <span class="text-[11px] text-slate-500 font-semibold" id="spreadsheetSyncStatusBadge">Saved order record</span>
             <a href="/api/export/csv" class="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-bold rounded-lg border border-slate-200 shadow-2xs transition-colors flex items-center gap-1 no-underline">
               <span class="material-symbols-outlined text-[14px]">download</span>
               <span>Download CSV</span>
@@ -608,7 +623,7 @@
     <!-- Tab View 3: Action Queue (Hot Leads & Follow-Up Recovery) -->
     <div id="viewActionQueue" class="hidden flex flex-col gap-4">
       <div class="flex items-center justify-between pb-1">
-        <button type="button" onclick="activateTab('NEW')" class="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs">
+        <button type="button" data-click="activateTab" data-arg="NEW" class="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs">
           <span class="material-symbols-outlined text-[16px]">arrow_back</span>
           <span>Back to New Sale</span>
         </button>
@@ -621,7 +636,7 @@
             <h3 class="text-base font-extrabold text-slate-900" id="actionQueueTitle">🔥 Needs Follow-Up</h3>
             <p class="text-xs text-slate-500 mt-0.5" id="actionQueueDesc">Customers who opened the link or entered their address, but haven't paid yet. Tap WhatsApp nudge to recover.</p>
           </div>
-          <button type="button" onclick="renderActionQueueContent()" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer" title="Refresh Queue">
+          <button type="button" data-click="renderActionQueueContent" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer" title="Refresh Queue">
             <span class="material-symbols-outlined text-[18px]">refresh</span>
           </button>
         </div>
@@ -650,44 +665,32 @@
       <!-- ============================================== -->
       <div id="mViewOverview" class="flex flex-col gap-6">
         
-        <!-- Subtle Store Master Overview Header -->
-        <div id="masterHeaderCard" class="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-center gap-3.5 min-w-0">
-            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/80">
-              <span class="material-symbols-outlined text-[22px]">storefront</span>
-            </div>
-            <div class="min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <h2 class="text-base sm:text-lg font-extrabold text-slate-900 truncate" id="masterStoreTitle">Store Master Dashboard</h2>
-                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100">
-                  <span class="material-symbols-outlined text-[12px] text-indigo-600">shield</span>
-                  <span>Owner Command</span>
-                </span>
-              </div>
-              <p class="text-xs text-slate-500 mt-0.5 truncate max-w-xl">
-                Live sales performance across all staff, commercial conversion funnel, and fulfillment operations.
-              </p>
-            </div>
+        <section class="workspace-intro">
+          <div>
+            <div class="workspace-eyebrow">YOUR STORE, IN ORDER</div>
+            <h1>Today at <span id="masterStoreTitle">your store</span></h1>
+            <p>A clear next step for every order. Let’s get the important things done.</p>
           </div>
-
-          <div class="flex items-center gap-2 shrink-0 flex-wrap">
-            <button type="button" onclick="setMasterTab('settings'); setSettingsTab('team');" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200/60">
-              <span class="material-symbols-outlined text-[16px] text-slate-500">group</span>
-              <span>Manage Team &amp; PINs</span>
-            </button>
-            <button type="button" onclick="openQuickSaleModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer">
-              <span class="material-symbols-outlined text-[16px]">add_circle</span>
-              <span>New Sale</span>
-            </button>
-          </div>
-        </div>
+          <button type="button" data-click="switchToStudioCockpit" class="primary-action"><span class="material-symbols-outlined" aria-hidden="true">add</span>New order</button>
+        </section>
+        <div class="workspace-status"><span class="sync-state" id="workspaceSyncState" role="status">Connecting to your store…</span><button class="text-xs text-indigo-600 font-semibold" type="button" data-click="fetchOrdersAndMetrics">Refresh</button></div>
+        <section class="ops-grid" aria-label="Orders needing attention">
+          <button type="button" class="ops-card ops-review" data-click="openQueue" data-arg="REVIEW"><span class="ops-label">Payment review<span class="material-symbols-outlined" aria-hidden="true">fact_check</span></span><strong id="opsReviewCount">0</strong><small>Check reported payments</small></button>
+          <button type="button" class="ops-card" data-click="openQueue" data-arg="READY"><span class="ops-label">Ready to pack<span class="material-symbols-outlined" aria-hidden="true">package_2</span></span><strong id="opsReadyCount">0</strong><small>Paid, with an address</small></button>
+          <button type="button" class="ops-card" data-click="openQueue" data-arg="ADDRESS"><span class="ops-label">Missing address<span class="material-symbols-outlined" aria-hidden="true">location_on</span></span><strong id="opsAddressCount">0</strong><small>Get delivery details</small></button>
+          <button type="button" class="ops-card" data-click="openQueue" data-arg="DISPATCHED"><span class="ops-label">On the way<span class="material-symbols-outlined" aria-hidden="true">local_shipping</span></span><strong id="opsShippedCount">0</strong><small>Follow up on delivery</small></button>
+        </section>
+        <section class="ops-panel" aria-labelledby="opsListTitle"><div class="ops-panel-heading"><div><h2 id="opsListTitle">Your next steps</h2><p>Payment review and fulfillment, in one place.</p></div><button type="button" class="secondary-action" data-click="openQueue" data-arg="ALL">All orders <span aria-hidden="true">↗</span></button></div><div id="opsPriorityList"></div></section>
+        <section id="receiptReviewPanel" class="ops-panel hidden" aria-labelledby="receiptReviewTitle"><div class="ops-panel-heading"><div><h2 id="receiptReviewTitle">Bank receipts awaiting review</h2><p>These receipts have not been assigned to an order. Check your bank account before confirming.</p></div></div><div id="receiptReviewList"></div></section>
+        <details class="reports-details"><summary>Reports &amp; team performance <span class="font-normal text-slate-500">· all time</span></summary><div class="reports-content">
+        <button type="button" class="secondary-action self-start" data-click="setMasterTab" data-arg="settings" data-arg2="team">Manage your team</button>
         <!-- Master KPI Cards Grid -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between">
-            <span class="text-xs font-bold text-slate-500">Total Store Revenue</span>
+            <span class="text-xs font-bold text-slate-500">Total received</span>
             <div class="mt-2">
               <span class="text-xl sm:text-2xl font-extrabold text-slate-900" id="masterRevenue">₹0.00</span>
-              <span class="text-[10px] text-emerald-600 font-bold block mt-0.5">100% Direct Bank Settlement</span>
+              <span class="text-[10px] text-emerald-600 font-bold block mt-0.5">Confirmed received · all time</span>
             </div>
           </div>
 
@@ -700,7 +703,7 @@
           </div>
 
           <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between">
-            <span class="text-xs font-bold text-slate-500">Paid &amp; Settled</span>
+            <span class="text-xs font-bold text-slate-500">Paid orders</span>
             <div class="mt-2">
               <span class="text-xl sm:text-2xl font-extrabold text-emerald-600" id="masterPaidCount">0</span>
               <span class="text-[10px] text-emerald-700 font-bold block mt-0.5" id="masterConversionRate">0% conversion rate</span>
@@ -716,13 +719,13 @@
           </div>
         </div>
 
-        <!-- Store Commercial Conversion Funnel -->
+        <!-- Checkout progress -->
         <div class="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-slate-100">
             <div>
               <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
                 <span class="material-symbols-outlined text-[20px] text-indigo-600">filter_alt</span>
-                <span>Store Commercial Conversion Funnel</span>
+                <span>Checkout progress</span>
               </h3>
               <p class="text-xs text-slate-500 mt-0.5">Step-by-step customer conversion from link generation to verified bank payment.</p>
             </div>
@@ -735,7 +738,7 @@
             <!-- 1: Sent -->
             <div class="p-3.5 bg-slate-50 border border-slate-200/70 rounded-2xl flex flex-col justify-between">
               <div class="flex items-center justify-between text-slate-400">
-                <span class="text-[10px] font-bold uppercase tracking-wider">1. Links Sent</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider">1. Links created</span>
                 <span class="material-symbols-outlined text-[16px]">send</span>
               </div>
               <div class="mt-2">
@@ -780,10 +783,10 @@
               </div>
             </div>
 
-            <!-- 5: Settled Sales -->
+            <!-- 5: Paid orders -->
             <div class="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl flex flex-col justify-between">
               <div class="flex items-center justify-between text-emerald-600">
-                <span class="text-[10px] font-bold uppercase tracking-wider">5. Settled Sales</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider">5. Paid orders</span>
                 <span class="material-symbols-outlined text-[16px]">task_alt</span>
               </div>
               <div class="mt-2">
@@ -800,9 +803,9 @@
             <div>
               <div class="flex items-center gap-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
-                <h3 class="text-base font-bold text-slate-900">High-Intent Leads • Address Entered but Unpaid</h3>
+                <h3 class="text-base font-bold text-slate-900">Customers awaiting payment</h3>
               </div>
-              <p class="text-xs text-slate-600 mt-0.5">These customers completed their delivery address but dropped off at payment. A 1-tap WhatsApp nudge recovers up to 40%.</p>
+              <p class="text-xs text-slate-600 mt-0.5">These customers added an address. Review timing and payment reports before following up.</p>
             </div>
             <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold border border-amber-300 self-start sm:self-auto" id="abandonedCountBadge">
               0 Leads
@@ -813,112 +816,32 @@
             <!-- Rendered dynamically by seller.js -->
           </div>
         </div>
+        </div></details>
       </div>
 
       <!-- ============================================== -->
       <!-- MASTER SUB-VIEW 2: UNIFIED DISPATCH BOARD -->
       <!-- ============================================== -->
       <div id="mViewDispatch" class="hidden flex flex-col gap-6">
-        
-        <!-- Orders Top Metrics Ribbon -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex flex-col justify-between">
-            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Awaiting Payment</span>
-            <span class="text-xl font-extrabold text-amber-700 mt-1" id="dispMetricPending">0 Orders</span>
+        <div id="ordersBoard" class="ob-board">
+          <div class="ob-header">
+            <div><h2 id="ordersBoardHeading">Orders</h2><p id="ordersBoardCount" aria-live="polite">Loading orders…</p></div>
+            <a class="ob-button ob-button-secondary" href="/api/export/csv">Download CSV</a>
           </div>
-          <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex flex-col justify-between">
-            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Packed &amp; Ready</span>
-            <span class="text-xl font-extrabold text-indigo-700 mt-1" id="dispMetricPacked">0 Orders</span>
+          <div class="ob-toolbar">
+            <label class="ob-search"><span class="material-symbols-outlined" aria-hidden="true">search</span><span class="sr-only">Search orders</span><input id="orderSearchInput" type="search" autocomplete="off" placeholder="Order, customer, phone or tracking" data-input="handleOrderSearch"/></label>
+            <label id="dispSalesmanFilterWrapper" class="ob-staff"><span>Staff</span><select id="dispSalesmanFilter" data-change="handleDispatchSalesmanFilter"><option value="ALL">All staff</option></select></label>
           </div>
-          <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex flex-col justify-between">
-            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">In Transit / Shipped</span>
-            <span class="text-xl font-extrabold text-blue-700 mt-1" id="dispMetricShipped">0 Orders</span>
-          </div>
-          <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex flex-col justify-between">
-            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Delivered</span>
-            <span class="text-xl font-extrabold text-emerald-700 mt-1" id="dispMetricDelivered">0 Orders</span>
-          </div>
-        </div>
-
-        <!-- Master Orders & Dispatch Board Controls & Filter Bar -->
-        <div class="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-4">
-          <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-            <div>
-              <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span class="material-symbols-outlined text-[20px] text-indigo-600">receipt_long</span>
-                <span id="ordersBoardHeading">Orders &amp; Dispatch Board</span>
-              </h3>
-              <p class="text-xs text-slate-500 mt-0.5">
-                Every customer order link, real-time checkout journey stage, verified direct bank payments, and shipping fulfillment.
-              </p>
-            </div>
-
-            <!-- Export CSV Button -->
-            <a href="/api/export/csv" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all no-underline shrink-0 shadow-xs">
-              <span class="material-symbols-outlined text-[16px]">download</span>
-              <span>Export Shiprocket CSV</span>
-            </a>
-          </div>
-
-          <!-- Filter Toolbar with Instant Live Search -->
-          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <!-- Search Input -->
-            <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition-all w-full lg:w-72 shadow-2xs">
-              <span class="material-symbols-outlined text-[16px] text-slate-400 pr-1.5">search</span>
-              <input id="orderSearchInput" oninput="handleOrderSearch(this.value)" placeholder="Search Ref, customer, phone, SKU, AWB..." type="text" class="w-full bg-transparent text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400" />
-            </div>
-
-            <!-- Controls: Salesman Filter & Status Pills -->
-            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-              <!-- Salesman Filter Dropdown (Owner only) -->
-              <div class="flex items-center gap-1.5" id="dispSalesmanFilterWrapper">
-                <label for="dispSalesmanFilter" class="text-xs font-bold text-slate-600 flex items-center gap-1">
-                  <span class="material-symbols-outlined text-[15px] text-slate-400">person</span>
-                  <span>Staff:</span>
-                </label>
-                <select id="dispSalesmanFilter" onchange="handleDispatchSalesmanFilter(this.value)" class="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-2.5 py-1.5 outline-none font-semibold cursor-pointer">
-                  <option value="ALL">All Staff</option>
-                </select>
-              </div>
-
-              <!-- Status Filter Pills -->
-              <div class="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
-                <button type="button" onclick="filterDispatchStatus('ALL', this)" class="disp-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-slate-900 text-white shadow-xs cursor-pointer">All</button>
-                <button type="button" onclick="filterDispatchStatus('PENDING', this)" class="disp-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">Pending</button>
-                <button type="button" onclick="filterDispatchStatus('PAID', this)" class="disp-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">Paid</button>
-                <button type="button" onclick="filterDispatchStatus('PACKING', this)" class="disp-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">Packing</button>
-                <button type="button" onclick="filterDispatchStatus('DISPATCHED', this)" class="disp-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">Dispatched</button>
-                <button type="button" onclick="filterDispatchStatus('DELIVERED', this)" class="disp-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">Delivered</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Authoritative Unified Orders Table (Desktop) -->
-          <div class="hidden md:block overflow-x-auto rounded-2xl border border-slate-200/90">
-            <table class="w-full text-left text-xs">
-              <thead>
-                <tr class="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200">
-                  <th class="py-3 px-3.5">Ref #</th>
-                  <th class="py-3 px-3.5">Staff</th>
-                  <th class="py-3 px-3.5">Customer &amp; Contact</th>
-                  <th class="py-3 px-3.5">Item &amp; Amount</th>
-                  <th class="py-3 px-3.5">Journey &amp; Payment</th>
-                  <th class="py-3 px-3.5 min-w-[200px]">Doorstep Address</th>
-                  <th class="py-3 px-3.5">Fulfillment Status</th>
-                  <th class="py-3 px-3.5 min-w-[150px]">Tracking Number</th>
-                  <th class="py-3 px-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="masterDispatchTbody" class="divide-y divide-slate-100 text-slate-700 font-medium">
-                <!-- Dynamically populated by seller.js -->
-              </tbody>
+          <div id="ordersBoardFilters" class="ob-filters" role="group" aria-label="Filter orders"></div>
+          <div class="ob-desktop">
+            <table class="ob-table">
+              <caption class="sr-only">Orders, payments and fulfillment</caption>
+              <thead><tr><th scope="col">Order</th><th scope="col">Customer</th><th scope="col">Item &amp; total</th><th scope="col">Payment</th><th scope="col">Delivery</th><th scope="col">Next action</th></tr></thead>
+              <tbody id="masterDispatchTbody"></tbody>
             </table>
           </div>
-
-          <!-- Mobile Orders & Dispatch Cards Feed (Touch-Optimized for Phones) -->
-          <div id="masterDispatchMobileList" class="md:hidden flex flex-col gap-3">
-            <!-- Dynamically populated by seller.js -->
-          </div>
+          <div id="masterDispatchMobileList" class="ob-mobile"></div>
+          <div id="ordersBoardPagination" class="ob-pagination"></div>
         </div>
       </div>
 
@@ -926,6 +849,7 @@
       <!-- MASTER SUB-VIEW 3: STORE SETTINGS WITH TABS -->
       <!-- ============================================== -->
       <div id="mViewSettings" class="hidden flex flex-col gap-6">
+        <div class="order-context">Bank emails assist reconciliation. Receipts require your review by default. Only confirm a payment after checking the money reached your account.</div>
         <div class="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-7 shadow-sm flex flex-col gap-6">
           
           <!-- Settings View Header with Sub-Tabs Switcher -->
@@ -938,24 +862,24 @@
               <p class="text-xs text-slate-500 mt-0.5">Manage store identity, salesmen team &amp; login PINs, and direct zero-fee UPI settlement.</p>
             </div>
             
-            <div class="flex items-center gap-2 self-start md:self-auto flex-wrap">
+            <div id="settingsHeaderActions" class="flex items-center gap-2 self-start md:self-auto flex-wrap">
               <!-- Sub-Tabs Navigation Pills -->
-              <div class="flex items-center gap-1 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/80 text-xs font-semibold overflow-x-auto max-w-full">
-                <button id="setTabBtnProfile" type="button" onclick="setSettingsTab('profile')" class="px-3.5 py-1.5 rounded-xl bg-white text-indigo-700 shadow-2xs font-bold border border-slate-200/80 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
+              <div id="settingsTabs" class="flex items-center gap-1 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/80 text-xs font-semibold overflow-x-auto max-w-full">
+                <button id="setTabBtnProfile" type="button" data-click="setSettingsTab" data-arg="profile" class="px-3.5 py-1.5 rounded-xl bg-white text-indigo-700 shadow-2xs font-bold border border-slate-200/80 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
                   <span class="material-symbols-outlined text-[16px]">storefront</span>
                   <span>Store Profile</span>
                 </button>
-                <button id="setTabBtnTeam" type="button" onclick="setSettingsTab('team')" class="px-3.5 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5 whitespace-nowrap">
+                <button id="setTabBtnTeam" type="button" data-click="setSettingsTab" data-arg="team" class="px-3.5 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5 whitespace-nowrap">
                   <span class="material-symbols-outlined text-[16px]">group</span>
                   <span>Team &amp; Staff PINs</span>
                 </button>
-                <button id="setTabBtnBanking" type="button" onclick="setSettingsTab('banking')" class="px-3.5 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5 whitespace-nowrap">
+                <button id="setTabBtnBanking" type="button" data-click="setSettingsTab" data-arg="banking" class="px-3.5 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-white/70 transition-colors cursor-pointer font-semibold flex items-center gap-1.5 whitespace-nowrap">
                   <span class="material-symbols-outlined text-[16px]">account_balance_wallet</span>
                   <span>UPI &amp; Banking</span>
                 </button>
               </div>
 
-              <button type="button" onclick="loadStoreSettings(true)" class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-1 cursor-pointer" title="Reload Settings">
+              <button type="button" data-click="loadStoreSettings" class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-1 cursor-pointer" title="Reload Settings">
                 <span class="material-symbols-outlined text-[15px]">refresh</span>
                 <span>Reload</span>
               </button>
@@ -966,12 +890,23 @@
           <!-- SUB-TAB 1: STORE PROFILE & IDENTITY            -->
           <!-- ============================================== -->
           <div id="setSectionProfile" class="flex flex-col gap-6">
-            <form id="storeSettingsForm" onsubmit="event.preventDefault(); handleSaveStoreSettings();" class="flex flex-col gap-5">
+            <form id="storeSettingsForm" data-submit="handleSaveStoreSettings" class="flex flex-col gap-5">
+              <fieldset id="storeThemeSection" class="theme-settings">
+                <legend>Store colours</legend>
+                <p>Choose a coordinated palette for your workspace and customer checkout.</p>
+                <input id="setThemeId" type="hidden" value="lavender"/>
+                <div id="themePresetGrid" class="theme-preset-grid" role="radiogroup" aria-label="Store colour palette"></div>
+                <div class="theme-settings-actions">
+                  <button id="saveStoreTheme" type="button" class="primary-action">Save colour</button>
+                  <button id="resetStoreTheme" type="button" class="secondary-action" hidden>Cancel preview</button>
+                  <span id="themePreviewStatus" role="status" aria-live="polite">Your saved palette is applied.</span>
+                </div>
+              </fieldset>
               <!-- Row 1: Brand Name & Owner Name -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="flex flex-col gap-1.5">
                   <label class="text-xs font-bold text-slate-700" for="setBrandName">Store / Business Name *</label>
-                  <input class="bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 text-slate-900 text-xs sm:text-sm rounded-xl px-3.5 py-2.5 outline-none font-semibold" id="setBrandName" required type="text" oninput="updateSettingsPreview()" />
+                  <input class="bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 text-slate-900 text-xs sm:text-sm rounded-xl px-3.5 py-2.5 outline-none font-semibold" id="setBrandName" required type="text" data-input="updateSettingsPreview" />
                 </div>
                 <div class="flex flex-col gap-1.5">
                   <label class="text-xs font-bold text-slate-700" for="setOwnerName">Owner Name</label>
@@ -1019,7 +954,7 @@
                 <!-- Logo Upload & Avatar Preview -->
                 <div class="flex items-start gap-4 p-3.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
                   <div class="relative group shrink-0">
-                    <div class="w-16 h-16 rounded-full border-2 border-dashed border-indigo-300 hover:border-indigo-500 overflow-hidden bg-slate-50 flex items-center justify-center shadow-xs cursor-pointer transition-colors relative" id="logoPreviewContainer" onclick="document.getElementById('setLogoFileInput').click()" ondragover="event.preventDefault(); this.classList.add('border-indigo-600', 'bg-indigo-50/50')" ondragleave="this.classList.remove('border-indigo-600', 'bg-indigo-50/50')" ondrop="event.preventDefault(); this.classList.remove('border-indigo-600', 'bg-indigo-50/50'); handleLogoDrop(event)" title="Click or Drop image to upload logo">
+                    <div class="w-16 h-16 rounded-full border-2 border-dashed border-indigo-300 hover:border-indigo-500 overflow-hidden bg-slate-50 flex items-center justify-center shadow-xs cursor-pointer transition-colors relative" id="logoPreviewContainer" data-click="clickElement" data-arg="setLogoFileInput" title="Click or Drop image to upload logo">
                       <img id="setLogoImgPreview" src="" alt="Store Logo" class="w-full h-full object-cover hidden"/>
                       <div id="setLogoFallbackIcon" class="w-full h-full flex flex-col items-center justify-center text-indigo-500 bg-indigo-50/80">
                         <span class="material-symbols-outlined text-[24px]">add_photo_alternate</span>
@@ -1029,7 +964,7 @@
                         <span class="material-symbols-outlined text-[18px]">upload</span>
                       </div>
                     </div>
-                    <button type="button" id="btnRemoveLogo" onclick="clearStoreLogo()" class="hidden absolute -top-1 -right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center shadow cursor-pointer text-[12px] hover:bg-rose-700" title="Remove Logo">
+                    <button type="button" id="btnRemoveLogo" data-click="clearStoreLogo" class="hidden absolute -top-1 -right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center shadow cursor-pointer text-[12px] hover:bg-rose-700" title="Remove Logo">
                       &times;
                     </button>
                   </div>
@@ -1044,7 +979,7 @@
                         <span class="material-symbols-outlined text-[16px]">upload</span>
                         <span>Choose Logo File</span>
                       </label>
-                      <input type="file" id="setLogoFileInput" accept="image/*" class="hidden" onchange="handleLogoFileSelect(event)" />
+                      <input type="file" id="setLogoFileInput" accept="image/*" class="hidden" data-change="handleLogoFileSelect" />
                       <input type="hidden" id="setLogoData" value="" />
                       <span class="text-[11px] text-slate-400">or enter image URL below</span>
                     </div>
@@ -1052,7 +987,7 @@
                       <span class="material-symbols-outlined text-[14px]">check_circle</span>
                       <span id="logoUploadFeedbackText">Logo ready! Click "Save Store Profile" to apply.</span>
                     </div>
-                    <input class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 text-slate-800 text-xs rounded-xl px-3 py-1.5 outline-none placeholder:text-slate-400 font-mono" id="setLogoUrl" type="url" placeholder="https://.../store-logo.png" oninput="handleLogoUrlInput(this.value)" />
+                    <input class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 text-slate-800 text-xs rounded-xl px-3 py-1.5 outline-none placeholder:text-slate-400 font-mono" id="setLogoUrl" type="url" placeholder="https://.../store-logo.png" data-input="handleLogoUrlInput" />
                   </div>
                 </div>
 
@@ -1063,7 +998,7 @@
                       <span class="material-symbols-outlined text-[15px] text-indigo-500">location_on</span>
                       <span>Store Physical Location</span>
                     </label>
-                    <input class="bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 text-slate-900 text-xs sm:text-sm rounded-xl px-3.5 py-2 outline-none font-medium placeholder:text-slate-400" id="setStoreLocation" type="text" placeholder="e.g. 104 MG Road, Bengaluru, Karnataka" oninput="updateSettingsPreview()" />
+                    <input class="bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 text-slate-900 text-xs sm:text-sm rounded-xl px-3.5 py-2 outline-none font-medium placeholder:text-slate-400" id="setStoreLocation" type="text" placeholder="e.g. 104 MG Road, Bengaluru, Karnataka" data-input="updateSettingsPreview" />
                     <span class="text-[10px] text-slate-500">Displayed with verified pin on customer checkout.</span>
                   </div>
 
@@ -1074,7 +1009,7 @@
                     </label>
                     <div class="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-100">
                       <span class="text-xs font-bold text-pink-500 pr-1 select-none">@</span>
-                      <input class="w-full bg-transparent text-slate-900 text-xs sm:text-sm outline-none font-semibold placeholder:text-slate-400" id="setStoreInstagram" type="text" placeholder="yourstore" oninput="updateSettingsPreview()" />
+                      <input class="w-full bg-transparent text-slate-900 text-xs sm:text-sm outline-none font-semibold placeholder:text-slate-400" id="setStoreInstagram" type="text" placeholder="yourstore" data-input="updateSettingsPreview" />
                     </div>
                     <span class="text-[10px] text-slate-500">Official Instagram account link.</span>
                   </div>
@@ -1085,7 +1020,7 @@
                   <label class="text-xs font-bold text-slate-800 flex items-center gap-1" for="setAssuranceText">
                     <span>✨ Customer Assurance Tagline</span>
                   </label>
-                  <input class="bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 text-slate-900 text-xs sm:text-sm rounded-xl px-3.5 py-2 outline-none font-medium placeholder:text-slate-400" id="setAssuranceText" type="text" placeholder="Your order is reserved exclusively for you." oninput="updateSettingsPreview()" />
+                  <input class="bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 text-slate-900 text-xs sm:text-sm rounded-xl px-3.5 py-2 outline-none font-medium placeholder:text-slate-400" id="setAssuranceText" type="text" placeholder="Your order is reserved exclusively for you." data-input="updateSettingsPreview" />
                   <span class="text-[10px] text-slate-500">Custom reassurance text shown above checkout payment button.</span>
                 </div>
 
@@ -1101,8 +1036,9 @@
 
               <!-- Security: Password Change -->
               <div class="flex flex-col gap-1.5 pt-2 border-t border-slate-100">
+                <label class="text-xs font-bold text-slate-700" for="setCurrentPassword">Current password (required only when changing it)</label><input id="setCurrentPassword" type="password" autocomplete="current-password" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-base"/>
                 <label class="text-xs font-bold text-slate-700" for="setNewPassword">Change Store Password (leave blank to keep current)</label>
-                <input class="bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none font-medium" id="setNewPassword" type="password" minlength="6" placeholder="Enter new password (min 6 characters)" />
+                <input class="bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none font-medium" id="setNewPassword" type="password" autocomplete="new-password" minlength="10" placeholder="At least 10 characters" />
               </div>
 
               <button id="btnSaveSettings" type="submit" class="self-start px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 flex items-center gap-2 transition-all cursor-pointer">
@@ -1124,7 +1060,7 @@
                 </h3>
                 <p class="text-xs text-slate-500 mt-0.5">Monitor each salesman's conversion drop-off, revenue generated, and 4-digit login PINs.</p>
               </div>
-              <button type="button" onclick="openAddSalesmanModal()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs self-start sm:self-auto">
+              <button type="button" data-click="openAddSalesmanModal" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs self-start sm:self-auto">
                 <span class="material-symbols-outlined text-[16px]">add</span>
                 <span>Add Salesman</span>
               </button>
@@ -1143,7 +1079,7 @@
                     <th class="py-3 px-3.5">Settled</th>
                     <th class="py-3 px-3.5">Total Revenue</th>
                     <th class="py-3 px-3.5">Conversion</th>
-                    <th class="py-3 px-3.5">Stock CRM Access</th>
+                    <th class="py-3 px-3.5">Inventory Access</th>
                     <th class="py-3 px-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -1163,6 +1099,18 @@
           <!-- SUB-TAB 3: DIRECT UPI & BANKING AUTOMATION     -->
           <!-- ============================================== -->
           <div id="setSectionBanking" class="hidden flex flex-col gap-5">
+            <fieldset class="theme-settings flex flex-col gap-3">
+              <legend>Email monitoring</legend>
+              <label class="flex items-center gap-3 text-sm font-semibold" for="setBankMonitoringActive"><input id="setBankMonitoringActive" type="checkbox"/> Check bank emails automatically</label>
+              <label class="text-sm font-semibold" for="setBankConfirmationMode">When a bank payment matches</label>
+              <select id="setBankConfirmationMode" class="bg-white border border-slate-200 rounded-xl px-3 py-3 text-base">
+                <option value="review">Save for owner review</option>
+                <option value="automatic">Confirm verified matches</option>
+              </select>
+              <p class="text-xs text-slate-500">Automatic confirmation requires an authenticated bank email, a matching transaction reference, order, amount and receipt time. Other payments stay in review.</p>
+              <button id="saveBankMonitoring" type="button" class="primary-action self-start" data-click="saveBankMonitoringSettings">Save email settings</button>
+              <span id="bankMonitoringSaveStatus" role="status" class="text-xs text-slate-600"></span>
+            </fieldset>
             <!-- Direct UPI ID (Where money lands) -->
             <div class="flex flex-col gap-1.5 p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100">
               <div class="flex items-center justify-between">
@@ -1190,12 +1138,12 @@
                       <span>Direct Bank Credit Automation</span>
                       <span class="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Zero Fees</span>
                     </h3>
-                    <p class="text-[11px] text-slate-500">Auto-marks orders PAID the second official bank alert email arrives.</p>
+                    <p class="text-[11px] text-slate-500">Checks bank alerts and confirms verified matches when automatic confirmation is enabled.</p>
                   </div>
                 </div>
 
                 <!-- Admin OAuth Config Trigger -->
-                <button type="button" onclick="openOAuthConfigModal()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 self-start sm:self-auto px-2.5 py-1 bg-white border border-indigo-100 rounded-lg shadow-2xs cursor-pointer">
+                <button type="button" data-click="openOAuthConfigModal" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 self-start sm:self-auto px-2.5 py-1 bg-white border border-indigo-100 rounded-lg shadow-2xs cursor-pointer">
                   <span class="material-symbols-outlined text-[13px]">key</span>
                   <span>Platform Google Keys</span>
                 </button>
@@ -1219,7 +1167,7 @@
                       <p class="text-[11px] text-slate-500">Zero passwords or manual work. Grant read permission to auto-detect bank credit emails.</p>
                     </div>
                   </div>
-                  <button type="button" onclick="connectGoogleOAuth()" id="btnConnectGoogle" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer whitespace-nowrap shrink-0">
+                  <button type="button" data-click="connectGoogleOAuth" id="btnConnectGoogle" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer whitespace-nowrap shrink-0">
                     <svg class="w-4 h-4" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -1241,13 +1189,13 @@
                         <span class="text-xs font-extrabold text-slate-900" id="googleConnectedEmail">connected@gmail.com</span>
                         <span class="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                           <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                          <span>Active 24/7</span>
+                          <span>Connected</span>
                         </span>
                       </div>
                       <p class="text-[11px] text-slate-500" id="googleLastPollText">Checking for bank alerts via official Google Gmail API</p>
                     </div>
                   </div>
-                  <button type="button" onclick="disconnectGoogleOAuth()" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0">
+                  <button type="button" data-click="disconnectGoogleOAuth" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0">
                     Disconnect
                   </button>
                 </div>
@@ -1262,7 +1210,7 @@
                     </label>
                     <span class="text-[10px] text-slate-400 font-medium">Presets &amp; Custom</span>
                   </div>
-                  <select id="setBankCode" onchange="onBankSelectChange(true)" class="bg-white border border-slate-200 focus:border-indigo-500 text-slate-900 text-xs rounded-xl px-3 py-2 outline-none font-bold cursor-pointer">
+                  <select id="setBankCode" data-change="onBankSelectChange" data-arg="true" class="bg-white border border-slate-200 focus:border-indigo-500 text-slate-900 text-xs rounded-xl px-3 py-2 outline-none font-bold cursor-pointer">
                     <option value="ICICI">ICICI Bank</option>
                     <option value="HDFC">HDFC Bank</option>
                     <option value="SBI">State Bank of India (SBI)</option>
@@ -1277,16 +1225,16 @@
                 <div class="flex flex-col gap-1">
                   <div class="flex items-center justify-between">
                     <label class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5" for="setVerifiedSenderEmail">
-                      <span>Verified Bank Alert Sender</span>
+                      <span>Expected bank alert sender</span>
                       <span class="text-[9px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">Editable</span>
                     </label>
-                    <button type="button" onclick="focusCustomSenderInput()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer">
+                    <button type="button" data-click="focusCustomSenderInput" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer">
                       <span class="material-symbols-outlined text-[13px]">edit</span>
                       <span>Type Custom</span>
                     </button>
                   </div>
                   <div class="relative">
-                    <input id="setVerifiedSenderEmail" type="text" oninput="onSenderInputTyped()" class="w-full bg-white text-slate-900 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs font-mono rounded-xl px-3 py-2 outline-none transition-all placeholder:text-slate-400" placeholder="e.g. bankingalerts@icicibank.com, alerts@yourbank.com" value="bankingalerts@icicibank.com" />
+                    <input id="setVerifiedSenderEmail" type="text" data-input="onSenderInputTyped" class="w-full bg-white text-slate-900 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs font-mono rounded-xl px-3 py-2 outline-none transition-all placeholder:text-slate-400" placeholder="e.g. bankingalerts@icicibank.com, alerts@yourbank.com" value="bankingalerts@icicibank.com" />
                   </div>
                   <div class="flex items-center flex-wrap gap-1 mt-0.5" id="bankSenderChips"></div>
                   <p class="text-[10px] text-slate-400">Strictly verifies incoming alerts. You can type any custom email or domain (e.g. <code class="text-indigo-600 font-mono">@bank.com</code>).</p>
@@ -1298,17 +1246,13 @@
                 <div class="flex items-center gap-2">
                   <span id="bankStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
                   <div class="flex flex-col">
-                    <span class="font-bold text-slate-800" id="bankStatusText">Automated settlement active</span>
+                    <span class="font-bold text-slate-800" id="bankStatusText">Bank receipt monitoring</span>
                     <span class="text-[10px] text-slate-500" id="bankLastCheckedText">Auto-polling via Gmail API</span>
                   </div>
                 </div>
 
                 <div class="flex items-center gap-2 flex-wrap">
-                  <button type="button" onclick="triggerTestBankWebhook()" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all" title="Simulate an incoming bank credit alert for testing">
-                    <span class="material-symbols-outlined text-[15px] text-indigo-600">flash_on</span>
-                    <span>Simulate Bank Alert</span>
-                  </button>
-                  <button type="button" onclick="copyStoreWebhookUrl()" class="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all" title="Copy Inbound Webhook for Zapier / Cloudmailin">
+                  <button type="button" data-click="copyStoreWebhookUrl" class="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all" title="Copy Inbound Webhook for Zapier / Cloudmailin">
                     <span class="material-symbols-outlined text-[15px] text-slate-500">content_copy</span>
                     <span>Webhook URL</span>
                   </button>
@@ -1317,9 +1261,9 @@
             </div>
 
             <!-- Save Banking Settings Button -->
-            <button type="button" onclick="handleSaveStoreSettings()" class="self-start px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 flex items-center gap-2 transition-all cursor-pointer">
+            <button type="button" data-click="handleSaveStoreSettings" class="self-start px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 flex items-center gap-2 transition-all cursor-pointer">
               <span class="material-symbols-outlined text-[17px]">save</span>
-              <span>Save UPI &amp; Banking Rails</span>
+              <span>Save payment settings</span>
             </button>
           </div>
 
@@ -1331,7 +1275,7 @@
       <!-- ============================================== -->
       <div id="mViewInventory" class="hidden flex flex-col gap-6">
         
-        <!-- Subtle Stock CRM Header -->
+        <!-- Subtle Inventory Header -->
         <div class="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center gap-3.5 min-w-0">
             <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/80">
@@ -1351,11 +1295,11 @@
           </div>
 
           <div class="flex items-center gap-2 shrink-0 flex-wrap">
-            <button type="button" onclick="openAddProductModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs">
+            <button type="button" data-click="openAddProductModal" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs">
               <span class="material-symbols-outlined text-[16px]">add_circle</span>
               <span>+ Add New Product SKU</span>
             </button>
-            <button type="button" onclick="fetchProductCatalog(true)" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border border-slate-200/60">
+            <button type="button" data-click="fetchProductCatalog" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border border-slate-200/60">
               <span class="material-symbols-outlined text-[16px]">refresh</span>
               <span>Refresh Stock</span>
             </button>
@@ -1420,9 +1364,9 @@
             <div class="flex items-center gap-2 flex-wrap">
               <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-indigo-500">
                 <span class="material-symbols-outlined text-[16px] text-slate-400 pr-1.5">search</span>
-                <input id="stockSearchInput" oninput="filterStockTable()" placeholder="Search SKU or name..." type="text" class="bg-transparent text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400 w-36 sm:w-48" />
+                <input id="stockSearchInput" data-input="filterStockTable" placeholder="Search SKU or name..." type="text" class="bg-transparent text-xs font-semibold outline-none text-slate-800 placeholder:text-slate-400 w-36 sm:w-48" />
               </div>
-              <select id="stockCategoryFilter" onchange="filterStockTable()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none">
+              <select id="stockCategoryFilter" data-change="filterStockTable" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none">
                 <option value="ALL">All Categories</option>
                 <option value="IN_STOCK">🟢 In Stock Only</option>
                 <option value="OUT_OF_STOCK">🔴 Out of Stock Only</option>
@@ -1462,80 +1406,35 @@
 
     <!-- Footer inside Floating App Container -->
     <footer id="appFooter" class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2 font-medium">
-      <div>© 2026 PaySap • Direct Bank-Verified Checkout Platform</div>
+      <div>© 2026 PaySap • Your store workspace</div>
       <div class="flex items-center gap-3">
-        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Direct Bank Settlement Active</span>
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Direct UPI checkout</span>
         <span>•</span>
-        <span>TLS 1.3 256-bit Secure</span>
+        <span>Payment confirmation is shown per order</span>
       </div>
     </footer>
 
-  </div>
+  </main>
 
   <!-- QR Code Modal -->
   <div class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-end sm:items-center justify-center p-0 sm:p-4" id="qrModal">
     <div class="bg-white max-w-xs w-full p-5 sm:p-6 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-100 flex flex-col items-center">
       <div class="sm:hidden w-10 h-1 bg-slate-300 rounded-full mx-auto -mt-1 mb-3"></div>
       <div class="w-full flex items-center justify-between mb-4">
-        <span class="text-xs font-bold text-slate-900">Scan &amp; Pay via UPI</span>
-        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" onclick="toggleQrModal(false)" type="button">
+        <span class="text-xs font-bold text-slate-900">Scan to open checkout</span>
+        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" data-click="toggleQrModal" data-arg="false" type="button">
           <span class="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
       <div class="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col items-center">
-        <svg class="w-40 h-40 text-slate-900" fill="currentColor" viewbox="0 0 100 100">
-          <rect height="26" rx="2" width="26" x="5" y="5"></rect>
-          <rect fill="#ffffff" height="18" width="18" x="9" y="9"></rect>
-          <rect height="10" width="10" x="13" y="13"></rect>
-          <rect height="26" rx="2" width="26" x="69" y="5"></rect>
-          <rect fill="#ffffff" height="18" width="18" x="73" y="9"></rect>
-          <rect height="10" width="10" x="77" y="13"></rect>
-          <rect height="26" rx="2" width="26" x="5" y="69"></rect>
-          <rect fill="#ffffff" height="18" width="18" x="9" y="73"></rect>
-          <rect height="10" width="10" x="13" y="77"></rect>
-          <rect height="6" width="6" x="36" y="8"></rect>
-          <rect height="6" width="6" x="46" y="8"></rect>
-          <rect height="6" width="6" x="56" y="8"></rect>
-          <rect height="8" width="8" x="36" y="18"></rect>
-          <rect height="6" width="6" x="48" y="18"></rect>
-          <rect height="6" width="6" x="8" y="36"></rect>
-          <rect height="6" width="6" x="18" y="36"></rect>
-          <rect height="6" width="6" x="28" y="36"></rect>
-          <rect height="8" width="8" x="8" y="46"></rect>
-          <rect height="6" width="6" x="20" y="46"></rect>
-          <rect height="8" width="8" x="36" y="36"></rect>
-          <rect height="8" width="8" x="48" y="36"></rect>
-          <rect height="6" width="6" x="60" y="36"></rect>
-          <rect height="8" width="8" x="70" y="36"></rect>
-          <rect height="6" width="6" x="82" y="36"></rect>
-          <rect height="6" width="6" x="36" y="48"></rect>
-          <rect height="8" width="8" x="46" y="48"></rect>
-          <rect height="6" width="6" x="58" y="48"></rect>
-          <rect height="6" width="6" x="72" y="48"></rect>
-          <rect height="6" width="6" x="84" y="48"></rect>
-          <rect height="8" width="8" x="36" y="60"></rect>
-          <rect height="6" width="6" x="48" y="60"></rect>
-          <rect height="8" width="8" x="60" y="60"></rect>
-          <rect height="6" width="6" x="72" y="60"></rect>
-          <rect height="8" width="8" x="82" y="60"></rect>
-          <rect height="6" width="6" x="36" y="72"></rect>
-          <rect height="8" width="8" x="46" y="72"></rect>
-          <rect height="6" width="6" x="60" y="72"></rect>
-          <rect height="6" width="70" y="72"></rect>
-          <rect height="8" width="8" x="80" y="72"></rect>
-          <rect height="8" width="8" x="36" y="82"></rect>
-          <rect height="6" width="6" x="48" y="82"></rect>
-          <rect height="8" width="8" x="58" y="82"></rect>
-          <rect height="6" width="70" y="82"></rect>
-          <rect height="6" width="84" y="82"></rect>
-        </svg>
+        <div id="sellerQrCode" aria-label="Checkout QR code"></div>
         <span class="text-sm font-bold text-slate-900 mt-2" id="qrAmountDisplay">₹0.00</span>
         <span class="text-[10px] text-slate-400" id="qrUrlDisplay">Link generated upon order creation</span>
       </div>
       <p class="text-[11px] text-slate-500 text-center mt-3">
-        Supports GPay, PhonePe, Paytm, and BHIM UPI directly on mobile or tablet.
+        Scan with your phone camera to open this order’s checkout.
       </p>
-      <button class="w-full mt-4 h-9 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl cursor-pointer" onclick="toggleQrModal(false)" type="button">
+      <button class="w-full mt-4 h-9 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl cursor-pointer" data-click="toggleQrModal" data-arg="false" type="button">
         Done
       </button>
     </div>
@@ -1552,12 +1451,12 @@
           </div>
           <h3 class="text-sm font-extrabold text-slate-900">Add New Salesman</h3>
         </div>
-        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" onclick="closeAddSalesmanModal()" type="button">
+        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" data-click="closeAddSalesmanModal" type="button">
           <span class="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
 
-      <form onsubmit="event.preventDefault(); handleAddSalesmanSubmit();" class="flex flex-col gap-3">
+      <form data-submit="handleAddSalesmanSubmit" class="flex flex-col gap-3">
         <div class="flex flex-col gap-1">
           <label class="text-xs font-semibold text-slate-700" for="newSmName">Salesman Name &amp; Role *</label>
           <input id="newSmName" required type="text" placeholder="e.g. Rahul (Counter Sales)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100"/>
@@ -1572,12 +1471,12 @@
         <div class="flex items-center gap-2 p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl">
           <input id="newSmStockAccess" type="checkbox" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"/>
           <label for="newSmStockAccess" class="text-xs font-semibold text-slate-800 cursor-pointer select-none">
-            📦 Grant Stock CRM &amp; Inventory Access
+            Allow this staff member to edit inventory
           </label>
         </div>
 
         <div class="flex items-center gap-2 pt-2">
-          <button type="button" onclick="closeAddSalesmanModal()" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">
+          <button type="button" data-click="closeAddSalesmanModal" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">
             Cancel
           </button>
           <button id="btnAddSmSubmit" type="submit" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-md shadow-indigo-600/20">
@@ -1599,12 +1498,12 @@
           </div>
           <h3 class="text-sm font-extrabold text-slate-900">Update Salesman PIN &amp; Access</h3>
         </div>
-        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" onclick="closeEditSalesmanModal()" type="button">
+        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" data-click="closeEditSalesmanModal" type="button">
           <span class="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
 
-      <form onsubmit="event.preventDefault(); handleEditSalesmanSubmit();" class="flex flex-col gap-3">
+      <form data-submit="handleEditSalesmanSubmit" class="flex flex-col gap-3">
         <input type="hidden" id="editSmId" value=""/>
 
         <div class="flex flex-col gap-1">
@@ -1613,19 +1512,19 @@
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-slate-700" for="editSmPin">New 4-Digit Login PIN *</label>
-          <input id="editSmPin" required type="password" inputmode="numeric" maxlength="4" placeholder="•••• 4 digits" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-base font-mono font-bold tracking-widest outline-none focus:border-indigo-500"/>
+          <label class="text-xs font-semibold text-slate-700" for="editSmPin">New PIN (leave blank to keep current)</label>
+          <input id="editSmPin" type="password" inputmode="numeric" maxlength="4" placeholder="•••• 4 digits" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-base font-mono font-bold tracking-widest outline-none focus:border-indigo-500"/>
         </div>
 
         <div class="flex items-center gap-2 p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl">
           <input id="editSmStockAccess" type="checkbox" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"/>
           <label for="editSmStockAccess" class="text-xs font-semibold text-slate-800 cursor-pointer select-none">
-            📦 Grant Stock CRM &amp; Inventory Access
+            Allow this staff member to edit inventory
           </label>
         </div>
 
         <div class="flex items-center gap-2 pt-2">
-          <button type="button" onclick="closeEditSalesmanModal()" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">
+          <button type="button" data-click="closeEditSalesmanModal" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">
             Cancel
           </button>
           <button id="btnEditSmSubmit" type="submit" class="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-md shadow-amber-600/20">
@@ -1636,7 +1535,7 @@
     </div>
   </div>
 
-  <!-- Add New Product to Stock CRM Modal -->
+  <!-- Add New Product to Inventory Modal -->
   <div class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs hidden flex items-end sm:items-center justify-center p-0 sm:p-4" id="modalAddProduct">
     <div class="bg-white max-w-md w-full p-5 sm:p-6 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-100 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
       <div class="sm:hidden w-10 h-1 bg-slate-300 rounded-full mx-auto -mt-1 mb-1"></div>
@@ -1645,14 +1544,14 @@
           <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
             <span class="material-symbols-outlined text-[18px]">add_box</span>
           </div>
-          <h3 class="text-sm font-extrabold text-slate-900">Add Product to Stock CRM</h3>
+          <h3 class="text-sm font-extrabold text-slate-900">Add Product to Inventory</h3>
         </div>
-        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" onclick="closeAddProductModal()" type="button">
+        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" data-click="closeAddProductModal" type="button">
           <span class="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
 
-      <form onsubmit="event.preventDefault(); handleAddNewProductSubmit();" class="flex flex-col gap-3">
+      <form data-submit="handleAddNewProductSubmit" class="flex flex-col gap-3">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-2">
           <div class="flex flex-col gap-1">
             <label class="text-xs font-semibold text-slate-700" for="newProdSku">Product SKU *</label>
@@ -1702,7 +1601,7 @@
             <span class="text-[10px] text-slate-400">Appears on checkout &amp; catalog</span>
           </div>
           <div class="flex items-center gap-3">
-            <div id="newProdImgPreviewWrapper" onclick="document.getElementById('newProdImgFile').click()" class="w-14 h-14 rounded-xl border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-white flex items-center justify-center overflow-hidden cursor-pointer shrink-0 relative group shadow-2xs" title="Click to choose image file">
+            <div id="newProdImgPreviewWrapper" data-click="clickElement" data-arg="newProdImgFile" class="w-14 h-14 rounded-xl border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-white flex items-center justify-center overflow-hidden cursor-pointer shrink-0 relative group shadow-2xs" title="Click to choose image file">
               <img id="newProdImgPreview" src="" alt="Product" class="w-full h-full object-cover hidden" />
               <div id="newProdImgFallback" class="flex flex-col items-center justify-center text-slate-400">
                 <span class="material-symbols-outlined text-[20px] text-indigo-400">add_a_photo</span>
@@ -1714,19 +1613,19 @@
                   <span class="material-symbols-outlined text-[14px]">upload</span>
                   <span>Choose Image</span>
                 </label>
-                <button type="button" id="btnRemoveProdImg" onclick="clearNewProductImage()" class="hidden text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer">
+                <button type="button" id="btnRemoveProdImg" data-click="clearNewProductImage" class="hidden text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer">
                   Remove
                 </button>
               </div>
-              <input type="file" id="newProdImgFile" accept="image/*" class="hidden" onchange="handleProductImageSelect(event)" />
+              <input type="file" id="newProdImgFile" accept="image/*" class="hidden" data-change="handleProductImageSelect" />
               <input type="hidden" id="newProdImgData" value="" />
-              <input type="url" id="newProdImgUrl" placeholder="Or enter image URL" oninput="handleProductImageUrl(this.value)" class="w-full bg-white border border-slate-200 text-slate-800 text-[11px] rounded-lg px-2.5 py-1 outline-none placeholder:text-slate-400 focus:border-indigo-500" />
+              <input type="url" id="newProdImgUrl" placeholder="Or enter image URL" data-input="handleProductImageUrl" class="w-full bg-white border border-slate-200 text-slate-800 text-[11px] rounded-lg px-2.5 py-1 outline-none placeholder:text-slate-400 focus:border-indigo-500" />
             </div>
           </div>
         </div>
 
         <div class="flex items-center gap-2 pt-2">
-          <button type="button" onclick="closeAddProductModal()" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">
+          <button type="button" data-click="closeAddProductModal" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">
             Cancel
           </button>
           <button id="btnAddProductSubmit" type="submit" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-md shadow-indigo-600/20">
@@ -1751,12 +1650,12 @@
             <p class="text-[10px] text-slate-500">Create a direct UPI order link without leaving Master Dashboard.</p>
           </div>
         </div>
-        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" onclick="closeQuickSaleModal()" type="button">
+        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" data-click="closeQuickSaleModal" type="button">
           <span class="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
 
-      <form onsubmit="event.preventDefault(); handleQuickSaleSubmit();" class="flex flex-col gap-3">
+      <form data-submit="handleQuickSaleSubmit" class="flex flex-col gap-3">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-2">
           <div class="flex flex-col gap-1">
             <label class="text-xs font-semibold text-slate-700" for="qsCustName">Customer Name <span class="text-slate-400 font-normal">(Optional)</span></label>
@@ -1780,10 +1679,10 @@
           </div>
           <!-- 1-Tap Quick Amount Chips -->
           <div class="flex items-center gap-1.5 flex-wrap pt-1">
-            <button type="button" onclick="adjustQsAmount(500)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold rounded-lg transition-all cursor-pointer">+500</button>
-            <button type="button" onclick="adjustQsAmount(1000)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold rounded-lg transition-all cursor-pointer">+1,000</button>
-            <button type="button" onclick="adjustQsAmount(2500)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold rounded-lg transition-all cursor-pointer">+2,500</button>
-            <button type="button" onclick="adjustQsAmount(5000)" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 active:scale-95 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-100 transition-all cursor-pointer">+5,000</button>
+            <button type="button" data-click="adjustQsAmount" data-arg="500" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold rounded-lg transition-all cursor-pointer">+500</button>
+            <button type="button" data-click="adjustQsAmount" data-arg="1000" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold rounded-lg transition-all cursor-pointer">+1,000</button>
+            <button type="button" data-click="adjustQsAmount" data-arg="2500" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold rounded-lg transition-all cursor-pointer">+2,500</button>
+            <button type="button" data-click="adjustQsAmount" data-arg="5000" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 active:scale-95 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-100 transition-all cursor-pointer">+5,000</button>
           </div>
         </div>
 
@@ -1804,7 +1703,7 @@
         </div>
         <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-200 text-xs">
           <span class="truncate flex-1 font-mono text-[11px] text-slate-600 select-all" id="qsLinkUrl">http://...</span>
-          <button type="button" onclick="copyQsLink()" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-bold rounded-lg text-[10px] cursor-pointer">
+          <button type="button" data-click="copyQsLink" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-bold rounded-lg text-[10px] cursor-pointer">
             Copy
           </button>
         </div>
@@ -1813,7 +1712,7 @@
             <span class="material-symbols-outlined text-[16px]">chat</span>
             <span>WhatsApp</span>
           </a>
-          <button type="button" onclick="shareQsLinkNative()" class="py-2.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs">
+          <button type="button" data-click="shareQsLinkNative" class="py-2.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs">
             <span class="material-symbols-outlined text-[16px]">share</span>
             <span>Share Sheet</span>
           </button>
@@ -1838,7 +1737,7 @@
             <p class="text-[10px] text-slate-500">Verify sender security, transaction extraction & auto-settlement.</p>
           </div>
         </div>
-        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" onclick="closeTestEmailModal()" type="button">
+        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" data-click="closeTestEmailModal" type="button">
           <span class="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
@@ -1846,22 +1745,22 @@
       <!-- Quick Template Inserter -->
       <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[10px] font-bold text-slate-600">
         <span class="text-slate-400 shrink-0">Sample Templates:</span>
-        <button type="button" onclick="loadSampleEmailPreset('icici')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 shrink-0 cursor-pointer">
+        <button type="button" data-click="loadSampleEmailPreset" data-arg="icici" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 shrink-0 cursor-pointer">
           ICICI Credit
         </button>
-        <button type="button" onclick="loadSampleEmailPreset('hdfc')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 shrink-0 cursor-pointer">
+        <button type="button" data-click="loadSampleEmailPreset" data-arg="hdfc" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 shrink-0 cursor-pointer">
           HDFC SmartHub
         </button>
-        <button type="button" onclick="loadSampleEmailPreset('sbi')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 shrink-0 cursor-pointer">
+        <button type="button" data-click="loadSampleEmailPreset" data-arg="sbi" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 shrink-0 cursor-pointer">
           SBI Alert
         </button>
-        <button type="button" onclick="loadSampleEmailPreset('spoofed')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg shrink-0 cursor-pointer border border-rose-200">
+        <button type="button" data-click="loadSampleEmailPreset" data-arg="spoofed" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg shrink-0 cursor-pointer border border-rose-200">
           ⚠️ Spoofed/Fake Sender
         </button>
       </div>
 
       <!-- Simulation Form -->
-      <form onsubmit="event.preventDefault(); submitTestEmailIngestion();" class="flex flex-col gap-3">
+      <form data-submit="submitTestEmailIngestion" class="flex flex-col gap-3">
         <div class="flex flex-col gap-1">
           <div class="flex items-center justify-between">
             <label class="text-xs font-semibold text-slate-700" for="testEmailFrom">
@@ -1918,7 +1817,7 @@
             <p class="text-[10px] text-slate-500">Configure once so store owners can connect Google OAuth with 1-click.</p>
           </div>
         </div>
-        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" onclick="closeOAuthConfigModal()" type="button">
+        <button class="text-slate-400 hover:text-slate-700 cursor-pointer" data-click="closeOAuthConfigModal" type="button">
           <span class="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
@@ -1927,7 +1826,7 @@
       <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl flex flex-col gap-1.5 text-xs">
         <div class="flex items-center justify-between">
           <span class="font-bold text-indigo-950">Authorized Redirect URI (Copy to Google Cloud):</span>
-          <button type="button" onclick="copyOauthRedirectUri()" class="text-[10px] font-bold text-indigo-700 bg-white border border-indigo-200 px-2 py-0.5 rounded cursor-pointer hover:bg-indigo-50">
+          <button type="button" data-click="copyOauthRedirectUri" class="text-[10px] font-bold text-indigo-700 bg-white border border-indigo-200 px-2 py-0.5 rounded cursor-pointer hover:bg-indigo-50">
             Copy URI
           </button>
         </div>
@@ -1938,7 +1837,7 @@
       </div>
 
       <!-- Step 2: Credentials Form -->
-      <form onsubmit="event.preventDefault(); savePlatformOAuthConfig();" class="flex flex-col gap-3">
+      <form data-submit="savePlatformOAuthConfig" class="flex flex-col gap-3">
         <div class="flex flex-col gap-1">
           <label class="text-xs font-semibold text-slate-700" for="oauthClientId">
             Google OAuth Client ID *
@@ -1965,40 +1864,49 @@
   <!-- MOBILE BOTTOM NAVIGATION DOCK (Native App Feel) -->
   <!-- ============================================== -->
   <div id="mobileBottomNav" class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-lg px-2 py-1.5 flex items-center justify-around select-none">
-    <button type="button" onclick="setMasterTab('overview')" id="mNavBtnOverview" class="flex-1 py-1 flex flex-col items-center justify-center text-indigo-600 transition-colors font-bold cursor-pointer">
+    <button type="button" data-click="setMasterTab" data-arg="overview" id="mNavBtnOverview" class="flex-1 py-1 flex flex-col items-center justify-center text-indigo-600 transition-colors font-bold cursor-pointer">
       <span class="material-symbols-outlined text-[22px]">dashboard</span>
-      <span class="text-[10px] mt-0.5">Overview</span>
+      <span class="text-[10px] mt-0.5">Home</span>
     </button>
-    <button type="button" onclick="setMasterTab('inventory')" id="mNavBtnInventory" class="flex-1 py-1 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-colors font-medium cursor-pointer">
+    <button type="button" data-click="setMasterTab" data-arg="inventory" id="mNavBtnInventory" class="flex-1 py-1 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-colors font-medium cursor-pointer">
       <span class="material-symbols-outlined text-[22px]">inventory_2</span>
-      <span class="text-[10px] mt-0.5">Stock CRM</span>
+      <span class="text-[10px] mt-0.5">Inventory</span>
     </button>
     
     <!-- Central Action: New Sale -->
     <div class="px-2">
-      <button type="button" onclick="openQuickSaleModal()" class="w-12 h-12 -mt-5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center cursor-pointer transition-transform active:scale-95 border-2 border-white" title="Create New Sale">
+      <button type="button" data-click="switchToStudioCockpit" class="w-12 h-12 -mt-5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center cursor-pointer transition-transform active:scale-95 border-2 border-white" title="New order" aria-label="New order">
         <span class="material-symbols-outlined text-[24px]">add</span>
       </button>
     </div>
 
-    <button type="button" onclick="setMasterTab('dispatch')" id="mNavBtnDispatch" class="flex-1 py-1 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-colors font-medium cursor-pointer relative">
+    <button type="button" data-click="setMasterTab" data-arg="dispatch" id="mNavBtnDispatch" class="flex-1 py-1 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-colors font-medium cursor-pointer relative">
       <span class="material-symbols-outlined text-[22px]">local_shipping</span>
-      <span class="text-[10px] mt-0.5">Dispatch</span>
+      <span class="text-[10px] mt-0.5">Orders</span>
     </button>
-    <button type="button" onclick="setMasterTab('settings')" id="mNavBtnSettings" class="flex-1 py-1 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-colors font-medium cursor-pointer">
+    <button type="button" data-click="setMasterTab" data-arg="settings" id="mNavBtnSettings" class="flex-1 py-1 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-colors font-medium cursor-pointer">
       <span class="material-symbols-outlined text-[22px]">settings</span>
       <span class="text-[10px] mt-0.5">Settings</span>
     </button>
   </div>
 
   <!-- Notification Toast -->
-  <div class="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 text-xs font-medium" id="toast">
+  <div role="status" aria-live="polite" aria-atomic="true" class="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 text-xs font-medium" id="toast">
     <span class="material-symbols-outlined text-[17px] text-emerald-400" id="toastIcon">check_circle</span>
-    <span id="toastMsg">Copied to clipboard</span>
+    <span id="toastMsg"></span>
   </div>
 
+  <dialog id="paymentConfirmationDialog" class="payment-dialog" aria-labelledby="paymentConfirmationTitle"><form method="dialog" id="paymentConfirmationForm"><h2 id="paymentConfirmationTitle">Confirm money received</h2><p id="paymentConfirmationSummary"></p><p class="order-context">Check your own bank account or cash receipt. A screenshot or customer reference is not proof of payment.</p><label for="paymentConfirmationMethod">Payment method</label><select id="paymentConfirmationMethod"><option value="Direct UPI · owner reviewed">UPI / bank payment</option><option value="Cash">Cash</option></select><label for="paymentConfirmationRef">Bank reference <span class="font-normal">(required for UPI)</span></label><input id="paymentConfirmationRef" type="text" inputmode="numeric" pattern="[0-9]{12}" maxlength="12" placeholder="12-digit UTR / RRN" required/><label for="paymentConfirmationReason">Review note <span class="font-normal">(optional)</span></label><input id="paymentConfirmationReason" maxlength="500" placeholder="e.g. Matched credit in bank statement"/><div class="flex gap-2 mt-5"><button class="secondary-action" value="cancel" formnovalidate>Go back</button><button class="primary-action" value="confirm">Confirm received</button></div></form></dialog>
+
+  <dialog id="refundResolutionDialog" class="payment-dialog" aria-labelledby="refundDialogTitle"><form method="dialog" id="refundResolutionForm"><h2 id="refundDialogTitle">Record customer refund</h2><p id="refundDialogSummary"></p><p class="order-context">Log the refund transfer completed from your bank/UPI app so this order is closed in your ledger.</p><label for="refundDialogAmount">Refund amount (₹) *</label><input id="refundDialogAmount" type="number" inputmode="decimal" min="0.01" step="0.01" required/><label for="refundDialogMethod">Refund method *</label><select id="refundDialogMethod"><option value="UPI Refund">UPI Refund</option><option value="Bank Transfer (IMPS/NEFT)">Bank Transfer (IMPS/NEFT)</option><option value="Cash">Cash</option></select><label for="refundDialogRef">Bank / UPI refund reference</label><input id="refundDialogRef" type="text" maxlength="100" placeholder="e.g. UTR or transfer reference"/><label for="refundDialogNotes">Notes <span class="font-normal">(optional)</span></label><input id="refundDialogNotes" type="text" maxlength="1000" placeholder="e.g. Sent to customer UPI ID"/><div class="flex gap-2 mt-5"><button class="secondary-action" value="cancel" formnovalidate>Cancel</button><button class="primary-action" value="confirm">Save refund record</button></div></form></dialog>
+
   <!-- Client-side Logic Script -->
-  <script src="/js/seller.js?v=no_poll_overwrite_20261105"></script>
+  <script src="/js/qrcode.min.js"></script>
+  <script src="/js/orders-board.js"></script>
+  <script src="/js/bank-status.js"></script>
+  <script src="/js/seller.js"></script>
+  <script src="/js/seller-experience.js"></script>
   <script src="/js/mobile.js"></script>
+  <script src="/js/ui-events.js" defer></script>
 </body>
 </html>

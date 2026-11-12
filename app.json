@@ -1,0 +1,37 @@
+{
+  "name": "PaySap",
+  "description": "WhatsApp Micro-Link Checkout & Automated Dispatch for Retail Merchants",
+  "repository": "https://github.com/Adsu4/paysap",
+  "addons": [
+    {
+      "plan": "heroku-postgresql:essential-0"
+    }
+  ],
+  "env": {
+    "NODE_ENV": {
+      "value": "production"
+    },
+    "HOST": {
+      "value": "0.0.0.0"
+    },
+    "TRUST_PROXY": {
+      "value": "1"
+    },
+    "STORAGE_DRIVER": {
+      "value": "postgres"
+    },
+    "ENCRYPTION_KEY": {
+      "generator": "secret"
+    },
+    "WEBHOOK_SHARED_SECRET": {
+      "generator": "secret"
+    },
+    "APP_URL": {
+      "description": "Your live Heroku HTTPS origin, e.g. https://your-app-name.herokuapp.com"
+    },
+    "ENABLE_EMAIL_AUTO_CONFIRMATION": {
+      "value": "0"
+    }
+  }
+}
+

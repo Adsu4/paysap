@@ -2,7 +2,7 @@
 <html lang="en" class="h-full">
 <head>
   <meta charset="utf-8"/>
-  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+  <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
   <meta name="theme-color" content="#4f46e5"/>
   <title>PaySap • Platform Login &amp; Staff Access</title>
   <meta name="description" content="PaySap unified platform login for store owners and sales staff. Direct UPI payment links with automated bank confirmation."/>
@@ -20,34 +20,14 @@
     }
     ::-webkit-scrollbar { display: none; }
   </style>
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-  <script>
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-          },
-          colors: {
-            brand: {
-              50: '#eef2ff',
-              100: '#e0e7ff',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
-            }
-          }
-        }
-      }
-    };
-  </script>
+  <link rel="stylesheet" href="/css/tailwind.css"/>
   <link rel="stylesheet" href="/css/mobile.css"/>
+  <link rel="stylesheet" href="/css/app.css"/>
 </head>
-<body class="bg-[#ebe9f7] min-h-screen text-slate-800 antialiased p-3 sm:p-6 flex flex-col items-center justify-center selection:bg-indigo-100 selection:text-indigo-900">
+<body class="auth-page bg-[#ebe9f7] min-h-screen text-slate-800 antialiased p-3 sm:p-6 flex flex-col items-center justify-center selection:bg-indigo-100 selection:text-indigo-900">
 
   <!-- Main Split Card Container -->
-  <main class="w-full max-w-4xl bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/10 border border-white/80 overflow-hidden grid grid-cols-1 md:grid-cols-12 items-stretch">
+  <main id="authShell" class="w-full max-w-4xl bg-white rounded-3xl sm:rounded-[32px] shadow-2xl shadow-indigo-950/10 border border-white/80 overflow-hidden grid grid-cols-1 md:grid-cols-12 items-stretch">
     
     <!-- LEFT COLUMN: Brand Showcase & Architecture (5 cols - Desktop only) -->
     <div class="hidden md:flex flex-col md:col-span-5 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 justify-between gap-6 relative overflow-hidden">
@@ -63,30 +43,30 @@
           </div>
           <div>
             <h1 class="text-lg font-black tracking-tight text-white leading-tight">PaySap</h1>
-            <p class="text-[11px] text-indigo-300 font-medium">Retail Conversion Operating System</p>
+            <p class="text-[11px] text-indigo-300 font-medium">A little less admin. A lot more clarity.</p>
           </div>
         </div>
 
         <div class="mt-4">
           <h2 class="text-lg sm:text-xl font-bold text-white leading-snug">
-            Direct UPI Checkout for Modern Businesses &amp; Retail Stores.
+            From a WhatsApp conversation to an organized order.
           </h2>
           <p class="text-xs text-slate-300 mt-1 leading-relaxed">
-            Owners oversee full operations from the Master Dashboard, while salesmen manage their individual sales in real-time.
+            Create a checkout link, collect delivery details, review payment, and keep every order moving.
           </p>
         </div>
       </div>
 
       <!-- Architecture Features -->
       <div class="relative z-10 flex flex-col gap-2.5 bg-white/5 border border-white/10 rounded-2xl p-3.5 backdrop-blur-md">
-        <span class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300">Role-Based Access System</span>
+        <span class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300">ONE PLACE FOR THE NEXT STEP</span>
         
         <div class="flex items-start gap-2.5 text-xs">
           <span class="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
             <span class="material-symbols-outlined text-[13px]">shield_person</span>
           </span>
           <div>
-            <span class="text-white font-bold block">Store Owner Master Dashboard</span>
+            <span class="text-white font-bold block">Store Owner Store dashboard</span>
             <span class="text-slate-300 text-[11px]">Logged in via Store Password. View all salesmen metrics, total revenue &amp; manage staff PINs.</span>
           </div>
         </div>
@@ -96,7 +76,7 @@
             <span class="material-symbols-outlined text-[13px]">badge</span>
           </span>
           <div>
-            <span class="text-white font-bold block">Salesman Cockpit</span>
+            <span class="text-white font-bold block">Staff workspace</span>
             <span class="text-slate-300 text-[11px]">Fast 4-digit PIN login. Salesmen only see their own customer orders and WhatsApp pitches.</span>
           </div>
         </div>
@@ -116,7 +96,7 @@
       <div class="relative z-10 flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-white/10">
         <span class="flex items-center gap-1">
           <span class="material-symbols-outlined text-[14px] text-emerald-400">verified_user</span>
-          <span>Zero Gateway Cut • Direct Bank UPI</span>
+          <span>Orders • Direct UPI • Fulfillment</span>
         </span>
         <span class="font-bold text-indigo-300">PaySap Engine</span>
       </div>
@@ -144,15 +124,15 @@
 
         <!-- Mode Switch Tabs: 3 Options -->
         <div class="flex items-center p-1 bg-slate-100 rounded-2xl w-full mb-4 sm:mb-5">
-          <button id="tabBtnSalesman" type="button" onclick="switchAuthMode('SALESMAN')" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer bg-white text-slate-900 shadow-xs text-center flex items-center justify-center gap-1">
+          <button id="tabBtnSalesman" type="button" data-auth-mode="SALESMAN" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer bg-white text-slate-900 shadow-xs text-center flex items-center justify-center gap-1">
             <span class="material-symbols-outlined text-[15px] text-indigo-600">badge</span>
             <span>Salesman PIN</span>
           </button>
-          <button id="tabBtnOwner" type="button" onclick="switchAuthMode('OWNER')" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer text-slate-500 hover:text-slate-800 text-center flex items-center justify-center gap-1">
+          <button id="tabBtnOwner" type="button" data-auth-mode="OWNER" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer text-slate-500 hover:text-slate-800 text-center flex items-center justify-center gap-1">
             <span class="material-symbols-outlined text-[15px] text-slate-400">shield_person</span>
             <span>Store Owner</span>
           </button>
-          <button id="tabBtnRegister" type="button" onclick="switchAuthMode('REGISTER')" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer text-slate-500 hover:text-slate-800 text-center flex items-center justify-center gap-1">
+          <button id="tabBtnRegister" type="button" data-auth-mode="REGISTER" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer text-slate-500 hover:text-slate-800 text-center flex items-center justify-center gap-1">
             <span class="material-symbols-outlined text-[15px] text-slate-400">storefront</span>
             <span>New Store</span>
           </button>
@@ -161,21 +141,22 @@
         <!-- ============================================== -->
         <!-- FORM 1: SALESMAN FAST PIN LOGIN -->
         <!-- ============================================== -->
-        <form id="salesmanForm" class="flex flex-col gap-3.5" onsubmit="event.preventDefault(); handleSalesmanLogin();">
+        <form id="salesmanForm" class="flex flex-col gap-3.5">
           <div>
             <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200 mb-1">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Fast Floor Access
             </div>
-            <h2 class="text-lg sm:text-xl font-extrabold text-slate-900">Salesman Studio Sign In</h2>
-            <p class="text-xs text-slate-500 mt-0.5">Select your store and enter your 4-digit PIN to access your sales dashboard.</p>
+            <h2 class="text-lg sm:text-xl font-extrabold text-slate-900">Staff sign in</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Find your store using its ID or owner email, then sign in with the PIN your owner gave you.</p>
           </div>
 
+          <div class="flex flex-col gap-2"><label for="staffStoreLookup" class="text-xs font-semibold text-slate-700">Store ID or owner email</label><div class="flex gap-2"><input id="staffStoreLookup" type="text" autocomplete="organization" class="min-w-0 flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="Ask your store owner"/><button id="btnFindStore" type="button" class="secondary-action">Find store</button></div><p id="storeLookupStatus" class="text-xs text-slate-500" role="status">Your store’s details are only loaded when you look it up.</p></div>
           <!-- Step 1: Select Store -->
           <div class="flex flex-col gap-1">
             <label class="text-xs font-semibold text-slate-700" for="salesmanStoreSelect">1. Select Store *</label>
             <div class="flex items-center bg-slate-50 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 rounded-xl px-3 py-1.5 transition-all">
               <span class="material-symbols-outlined text-[17px] text-slate-400 pr-2 select-none">storefront</span>
-              <select id="salesmanStoreSelect" onchange="onStoreSelectChange(this.value)" required class="w-full bg-transparent text-slate-900 text-xs sm:text-sm outline-none font-semibold cursor-pointer">
+              <select id="salesmanStoreSelect" required class="w-full bg-transparent text-slate-900 text-xs sm:text-sm outline-none font-semibold cursor-pointer">
                 <option value="">-- Choose your store --</option>
               </select>
             </div>
@@ -206,61 +187,93 @@
 
           <button id="btnSalesmanSubmit" class="mt-2 w-full h-11 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer" type="submit">
             <span class="material-symbols-outlined text-[18px]">key</span>
-            <span>Sign In to My Sales Cockpit</span>
+            <span>Sign in to my workspace</span>
           </button>
 
           <div class="flex items-center justify-between text-xs text-slate-500 pt-1">
             <span>Are you the store owner?</span>
-            <button type="button" onclick="switchAuthMode('OWNER')" class="text-indigo-600 font-bold hover:underline cursor-pointer">Owner Login with Password →</button>
+            <button type="button" data-auth-mode="OWNER" class="text-indigo-600 font-bold hover:underline cursor-pointer">Owner Login with Password →</button>
           </div>
         </form>
 
         <!-- ============================================== -->
         <!-- FORM 2: STORE OWNER LOGIN (STORE PASSWORD) -->
         <!-- ============================================== -->
-        <form id="ownerForm" class="hidden flex flex-col gap-4" onsubmit="event.preventDefault(); handleOwnerLogin();">
+        <form id="ownerForm" class="hidden flex flex-col gap-4">
           <div>
             <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-200 mb-1">
               <span class="material-symbols-outlined text-[13px]">shield</span> Master Control
             </div>
             <h2 class="text-lg sm:text-xl font-extrabold text-slate-900">Store Owner Login</h2>
-            <p class="text-xs text-slate-500 mt-0.5">Access the Master Dashboard with all store revenue, all salesman sales, and PIN management.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Access the Store dashboard with all store revenue, all salesman sales, and PIN management.</p>
           </div>
 
           <div class="flex flex-col gap-1">
             <label class="text-xs font-semibold text-slate-700" for="ownerEmail">Store Email or Store ID *</label>
             <div class="flex items-center bg-slate-50 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 rounded-xl px-3 py-2 transition-all">
               <span class="material-symbols-outlined text-[17px] text-slate-400 pr-2 select-none">mail</span>
-              <input class="w-full bg-transparent text-slate-900 text-xs sm:text-sm outline-none font-medium placeholder:text-slate-400" id="ownerEmail" required type="text" placeholder="e.g. store@company.com or merchant@gmail.com"/>
+              <input class="w-full bg-transparent text-slate-900 text-xs sm:text-sm outline-none font-medium placeholder:text-slate-400" autocomplete="username" id="ownerEmail" required type="text" placeholder="e.g. store@company.com or merchant@gmail.com"/>
             </div>
           </div>
 
           <div class="flex flex-col gap-1">
             <div class="flex items-center justify-between">
               <label class="text-xs font-semibold text-slate-700" for="ownerPassword">Store Password *</label>
-              <span class="text-[11px] text-indigo-600 font-semibold cursor-pointer hover:underline" onclick="showToast('Use your registered store password')">Need help?</span>
+              <button type="button" data-auth-mode="RECOVERY" class="text-[11px] text-indigo-600 font-semibold cursor-pointer hover:underline">Forgot password?</button>
             </div>
             <div class="flex items-center bg-slate-50 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 rounded-xl px-3 py-2 transition-all">
               <span class="material-symbols-outlined text-[17px] text-slate-400 pr-2 select-none">lock</span>
-              <input class="w-full bg-transparent text-slate-900 text-xs sm:text-sm outline-none font-medium placeholder:text-slate-400" id="ownerPassword" required type="password" placeholder="•••••••• Store Password"/>
+              <input class="w-full bg-transparent text-slate-900 text-xs sm:text-sm outline-none font-medium placeholder:text-slate-400" autocomplete="current-password" id="ownerPassword" required type="password" placeholder="•••••••• Store Password"/>
             </div>
           </div>
 
           <button id="btnOwnerSubmit" class="mt-2 w-full h-11 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer" type="submit">
             <span class="material-symbols-outlined text-[18px]">admin_panel_settings</span>
-            <span>Sign In to Master Dashboard</span>
+            <span>Sign In to Store dashboard</span>
           </button>
 
           <p class="text-xs text-center text-slate-500 mt-1">
             Want to set up a new store? 
-            <button type="button" onclick="switchAuthMode('REGISTER')" class="text-indigo-600 font-bold hover:underline cursor-pointer">Register in 30 seconds →</button>
+            <button type="button" data-auth-mode="REGISTER" class="text-indigo-600 font-bold hover:underline cursor-pointer">Create a store →</button>
           </p>
         </form>
 
         <!-- ============================================== -->
+        <!-- FORM 2B: OWNER PASSWORD RECOVERY & RESET -->
+        <!-- ============================================== -->
+        <div id="recoveryPanel" class="hidden flex flex-col gap-4">
+          <div>
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[11px] font-bold border border-amber-200 mb-1">
+              <span class="material-symbols-outlined text-[13px]">lock_reset</span> Account Recovery
+            </div>
+            <h2 class="text-lg sm:text-xl font-extrabold text-slate-900">Reset Owner Password</h2>
+            <p id="recoveryStatus" class="text-xs text-slate-500 mt-0.5" role="status">Request a one-time reset token or apply one you already received.</p>
+          </div>
+
+          <form id="forgotPasswordForm" class="flex flex-col gap-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+            <label class="text-xs font-semibold text-slate-700" for="recoveryEmail">1. Store Owner Email *</label>
+            <div class="flex gap-2">
+              <input id="recoveryEmail" type="email" autocomplete="email" required class="min-w-0 flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm outline-none font-medium" placeholder="owner@store.com"/>
+              <button id="btnSendRecovery" type="submit" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer">Send Reset</button>
+            </div>
+          </form>
+
+          <form id="resetPasswordForm" class="flex flex-col gap-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+            <label class="text-xs font-semibold text-slate-700" for="resetTokenInput">2. Reset Token &amp; New Password</label>
+            <input id="resetTokenInput" type="text" required class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono outline-none" placeholder="Paste single-use hex reset token"/>
+            <input id="resetNewPassword" type="password" required minlength="10" autocomplete="new-password" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm outline-none" placeholder="New password (min 10 characters)"/>
+            <button id="btnCompleteReset" type="submit" class="w-full h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer">Update Password</button>
+          </form>
+
+          <div class="text-center">
+            <button type="button" data-auth-mode="OWNER" class="text-xs text-indigo-600 font-bold hover:underline cursor-pointer">← Back to Owner Login</button>
+          </div>
+        </div>
+
+        <!-- ============================================== -->
         <!-- FORM 3: REGISTER NEW STORE -->
         <!-- ============================================== -->
-        <form id="registerForm" class="hidden flex flex-col gap-3" onsubmit="event.preventDefault(); handleRegister();">
+        <form id="registerForm" class="hidden flex flex-col gap-3">
           <div>
             <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-200 mb-1">
               <span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span> Store Onboarding
@@ -324,7 +337,7 @@
             </div>
             <div class="flex flex-col gap-1">
               <label class="text-xs font-semibold text-slate-700" for="regPassword">Store Password *</label>
-              <input class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 text-slate-900 text-xs rounded-xl px-3 py-2 outline-none font-medium placeholder:text-slate-400" id="regPassword" required minlength="6" type="password" placeholder="Min 6 characters"/>
+              <input class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 text-slate-900 text-xs rounded-xl px-3 py-2 outline-none font-medium placeholder:text-slate-400" autocomplete="new-password" id="regPassword" required minlength="10" type="password" placeholder="At least 10 characters"/>
             </div>
           </div>
 
@@ -339,9 +352,10 @@
                 <p class="text-[10px] text-slate-500 mt-0.5">How many staff members or sales counters do you have?</p>
               </div>
               <div class="flex items-center gap-2">
-                <select id="regEmployeeCount" onchange="adjustStaffRows(this.value)" class="bg-white border border-slate-200 text-slate-800 text-xs rounded-xl px-2.5 py-1 font-bold outline-none cursor-pointer">
+                <select id="regEmployeeCount" class="bg-white border border-slate-200 text-slate-800 text-xs rounded-xl px-2.5 py-1 font-bold outline-none cursor-pointer">
                   <option value="1">1 Staff</option>
-                  <option value="2" selected>2 Staff</option>
+                  <option value="0" selected>Just me · add staff later</option>
+                  <option value="2">2 Staff</option>
                   <option value="3">3 Staff</option>
                   <option value="4">4 Staff</option>
                   <option value="5">5 Staff</option>
@@ -355,7 +369,7 @@
               <!-- Dynamically rendered staff inputs -->
             </div>
 
-            <button type="button" onclick="addManualStaffRow()" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 self-start pt-1 cursor-pointer">
+            <button id="btnAddStaffRow" type="button" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 self-start pt-1 cursor-pointer">
               <span class="material-symbols-outlined text-[14px]">add_circle</span>
               <span>+ Add another employee / counter</span>
             </button>
@@ -363,20 +377,20 @@
 
           <button id="btnRegSubmit" class="mt-1 w-full h-11 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer" type="submit">
             <span class="material-symbols-outlined text-[18px]">verified</span>
-            <span>Register Store &amp; Open Master Dashboard</span>
+            <span>Register Store &amp; Open Store dashboard</span>
           </button>
 
           <p class="text-xs text-center text-slate-500">
             Already registered? 
-            <button type="button" onclick="switchAuthMode('SALESMAN')" class="text-indigo-600 font-bold hover:underline cursor-pointer">Staff PIN Login</button>
+            <button type="button" data-auth-mode="SALESMAN" class="text-indigo-600 font-bold hover:underline cursor-pointer">Staff PIN Login</button>
             • 
-            <button type="button" onclick="switchAuthMode('OWNER')" class="text-indigo-600 font-bold hover:underline cursor-pointer">Store Owner Login</button>
+            <button type="button" data-auth-mode="OWNER" class="text-indigo-600 font-bold hover:underline cursor-pointer">Store Owner Login</button>
           </p>
         </form>
       </div>
 
       <div class="text-[11px] text-slate-400 text-center border-t border-slate-100 pt-3">
-        PaySap Unified Platform • Direct Bank UPI • Zero Transaction Fees
+        PaySap · Your store workspace
       </div>
 
     </div>
@@ -384,359 +398,11 @@
   </main>
 
   <!-- Notification Toast -->
-  <div class="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 text-xs font-medium" id="toast">
+  <div class="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 text-xs font-medium" id="toast" role="status" aria-live="polite">
     <span class="material-symbols-outlined text-[17px] text-emerald-400" id="toastIcon">check_circle</span>
     <span id="toastMsg">Notification</span>
   </div>
 
-  <script>
-    let publicStores = [];
-    let currentAuthMode = 'SALESMAN';
-
-    // Switch between the 3 views
-    function switchAuthMode(mode) {
-      currentAuthMode = mode;
-      const tabBtnSalesman = document.getElementById('tabBtnSalesman');
-      const tabBtnOwner = document.getElementById('tabBtnOwner');
-      const tabBtnRegister = document.getElementById('tabBtnRegister');
-      const salesmanForm = document.getElementById('salesmanForm');
-      const ownerForm = document.getElementById('ownerForm');
-      const registerForm = document.getElementById('registerForm');
-
-      // Reset tab styling
-      [tabBtnSalesman, tabBtnOwner, tabBtnRegister].forEach(b => {
-        b.className = 'flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer text-slate-500 hover:text-slate-800 text-center flex items-center justify-center gap-1';
-      });
-
-      salesmanForm.classList.add('hidden');
-      ownerForm.classList.add('hidden');
-      registerForm.classList.add('hidden');
-
-      if (mode === 'SALESMAN') {
-        tabBtnSalesman.className = 'flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer bg-white text-slate-900 shadow-xs text-center flex items-center justify-center gap-1';
-        salesmanForm.classList.remove('hidden');
-        document.getElementById('salesmanPin').focus();
-      } else if (mode === 'OWNER') {
-        tabBtnOwner.className = 'flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer bg-white text-slate-900 shadow-xs text-center flex items-center justify-center gap-1';
-        ownerForm.classList.remove('hidden');
-        document.getElementById('ownerEmail').focus();
-      } else if (mode === 'REGISTER') {
-        tabBtnRegister.className = 'flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer bg-white text-slate-900 shadow-xs text-center flex items-center justify-center gap-1';
-        registerForm.classList.remove('hidden');
-        document.getElementById('regBrandName').focus();
-      }
-    }
-
-    // Load available stores and their salesmen for quick selection
-    async function loadPublicStores() {
-      try {
-        const res = await fetch('/api/public/stores');
-        const data = await res.json();
-        if (data.success && data.stores) {
-          publicStores = data.stores;
-          const storeSelect = document.getElementById('salesmanStoreSelect');
-          storeSelect.innerHTML = `<option value="">-- Choose your store (${publicStores.length} available) --</option>`;
-          
-          publicStores.forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s.id;
-            opt.textContent = `${s.brandName} (${(s.salesmen || []).length} staff)`;
-            storeSelect.appendChild(opt);
-          });
-
-          // Pre-select first store if available
-          if (publicStores.length > 0) {
-            // Check if saved store in localStorage
-            const savedStore = localStorage.getItem('last_store_id');
-            const targetStore = (savedStore && publicStores.find(s => s.id === savedStore)) ? savedStore : publicStores[0].id;
-            storeSelect.value = targetStore;
-            onStoreSelectChange(targetStore);
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching public stores:', err);
-      }
-    }
-
-    function onStoreSelectChange(storeId) {
-      const staffSelect = document.getElementById('salesmanStaffSelect');
-      staffSelect.innerHTML = '';
-
-      if (!storeId) {
-        staffSelect.innerHTML = '<option value="">-- Select store first --</option>';
-        return;
-      }
-
-      localStorage.setItem('last_store_id', storeId);
-      const store = publicStores.find(s => s.id === storeId);
-      if (!store || !store.salesmen || store.salesmen.length === 0) {
-        staffSelect.innerHTML = '<option value="">-- No salesmen found (Use Owner Login) --</option>';
-        return;
-      }
-
-      store.salesmen.forEach(sm => {
-        const opt = document.createElement('option');
-        opt.value = sm.id;
-        opt.textContent = sm.name;
-        staffSelect.appendChild(opt);
-      });
-    }
-
-    // 1. Handle Salesman PIN Login
-    async function handleSalesmanLogin() {
-      const storeId = document.getElementById('salesmanStoreSelect').value;
-      const salesmanId = document.getElementById('salesmanStaffSelect').value;
-      const pin = document.getElementById('salesmanPin').value.trim();
-
-      if (!storeId) {
-        showToast('⚠️ Please select your store.');
-        return;
-      }
-      if (!pin || pin.length < 4) {
-        showToast('⚠️ Please enter your 4-digit PIN.');
-        return;
-      }
-
-      const btn = document.getElementById('btnSalesmanSubmit');
-      const orig = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = `<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span><span>Verifying PIN...</span>`;
-
-      try {
-        const res = await fetch('/api/auth/salesman-login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ storeId, salesmanId, pin })
-        });
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-          showToast('⚠️ ' + (data.error || 'Invalid PIN. Please try again.'));
-          return;
-        }
-
-        // Store session token and role info
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('auth_role', 'SALESMAN');
-        localStorage.setItem('seller_profile', JSON.stringify(data.seller));
-        localStorage.setItem('salesman_profile', JSON.stringify(data.salesman));
-
-        showToast(`✨ Welcome, ${data.salesman.name}! Launching sales cockpit...`);
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 500);
-
-      } catch (err) {
-        console.error(err);
-        showToast('⚠️ Connection error. Please ensure server is running.');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = orig;
-      }
-    }
-
-    // 2. Handle Store Owner Login
-    async function handleOwnerLogin() {
-      const email = document.getElementById('ownerEmail').value.trim();
-      const password = document.getElementById('ownerPassword').value;
-
-      if (!email || !password) {
-        showToast('⚠️ Please enter store email and password.');
-        return;
-      }
-
-      const btn = document.getElementById('btnOwnerSubmit');
-      const orig = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = `<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span><span>Authenticating Store...</span>`;
-
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-          showToast('⚠️ ' + (data.error || 'Invalid email or store password.'));
-          return;
-        }
-
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('auth_role', 'OWNER');
-        localStorage.setItem('seller_profile', JSON.stringify(data.seller));
-        localStorage.removeItem('salesman_profile');
-
-        showToast(`👑 Welcome Owner! Opening ${data.seller.brandName} Master Dashboard...`);
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 500);
-
-      } catch (err) {
-        console.error(err);
-        showToast('⚠️ Connection error. Please check server.');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = orig;
-      }
-    }
-
-    // Dynamic Sales Staff Setup Helpers
-    function renderStaffRow(idx, defaultName = '', defaultPin = '1234') {
-      const container = document.getElementById('regSalesmenContainer');
-      if (!container) return;
-      const rowId = `staffRow_${idx}`;
-      const div = document.createElement('div');
-      div.id = rowId;
-      div.className = 'grid grid-cols-12 gap-2 items-center bg-white p-2 rounded-xl border border-slate-200/90 shadow-2xs';
-      div.innerHTML = `
-        <div class="col-span-7 flex flex-col">
-          <label class="text-[10px] font-bold text-slate-500">Staff #${idx} Name</label>
-          <input type="text" class="staff-name-input w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-lg px-2 py-1 outline-none font-semibold" placeholder="e.g. Salesman ${idx}" value="${defaultName || 'Counter Staff ' + idx}" required />
-        </div>
-        <div class="col-span-4 flex flex-col">
-          <label class="text-[10px] font-bold text-slate-500">4-Digit PIN</label>
-          <input type="password" maxlength="4" class="staff-pin-input w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono text-center text-xs rounded-lg px-2 py-1 outline-none font-bold tracking-widest" placeholder="1234" value="${defaultPin}" required />
-        </div>
-        <div class="col-span-1 flex items-end justify-center pt-3">
-          <button type="button" onclick="removeStaffRow('${rowId}')" class="text-slate-400 hover:text-rose-500 text-xs cursor-pointer" title="Remove">✕</button>
-        </div>
-      `;
-      container.appendChild(div);
-    }
-
-    function adjustStaffRows(count) {
-      const container = document.getElementById('regSalesmenContainer');
-      if (!container) return;
-      container.innerHTML = '';
-      const num = parseInt(count, 10) || 2;
-      const defaultPins = ['1234', '5678', '9988', '1122', '3344', '5566', '7788', '2468'];
-      const defaultNames = ['Counter 1 (Main Desk)', 'Floor Sales (Lead)', 'Bridal Consultant', 'Floor Associate', 'Counter 2'];
-      for (let i = 1; i <= num; i++) {
-        renderStaffRow(i, defaultNames[i-1] || `Sales Associate ${i}`, defaultPins[(i-1) % defaultPins.length]);
-      }
-    }
-
-    function addManualStaffRow() {
-      const container = document.getElementById('regSalesmenContainer');
-      const currentRows = container.querySelectorAll('[id^="staffRow_"]').length;
-      renderStaffRow(currentRows + 1, `Floor Staff ${currentRows + 1}`, '1234');
-    }
-
-    function removeStaffRow(rowId) {
-      const container = document.getElementById('regSalesmenContainer');
-      const rows = container.querySelectorAll('[id^="staffRow_"]');
-      if (rows.length <= 1) {
-        showToast('⚠️ Store must have at least 1 sales counter / staff member.');
-        return;
-      }
-      const el = document.getElementById(rowId);
-      if (el) el.remove();
-    }
-
-    // Initialize staff rows on page load
-    document.addEventListener('DOMContentLoaded', () => {
-      adjustStaffRows(2);
-    });
-
-    // 3. Handle Register New Store
-    async function handleRegister() {
-      const brandName = document.getElementById('regBrandName').value.trim();
-      const ownerName = document.getElementById('regOwnerName').value.trim();
-      const brandCategory = document.getElementById('regCategory').value;
-      const phone = document.getElementById('regPhone').value.trim();
-      const upiId = document.getElementById('regUpiId').value.trim();
-      const email = document.getElementById('regEmail').value.trim();
-      const password = document.getElementById('regPassword').value;
-
-      // Extract salesmen
-      const nameInputs = document.querySelectorAll('.staff-name-input');
-      const pinInputs = document.querySelectorAll('.staff-pin-input');
-      const salesmen = [];
-
-      for (let i = 0; i < nameInputs.length; i++) {
-        const name = nameInputs[i].value.trim();
-        const pin = pinInputs[i].value.trim();
-        if (!name) {
-          showToast(`⚠️ Please enter a name for Staff #${i + 1}`);
-          return;
-        }
-        if (!/^\d{4}$/.test(pin)) {
-          showToast(`⚠️ PIN for ${name} must be exactly 4 digits (e.g. 1234)`);
-          return;
-        }
-        salesmen.push({ name, pin });
-      }
-
-      if (salesmen.length === 0) {
-        showToast('⚠️ Please specify at least 1 staff member or counter.');
-        return;
-      }
-
-      const btn = document.getElementById('btnRegSubmit');
-      const orig = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = `<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span><span>Creating Store & Staff PINs on PaySap...</span>`;
-
-      try {
-        const res = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            brandName,
-            ownerName,
-            brandCategory,
-            phone,
-            upiId,
-            email,
-            password,
-            salesmen
-          })
-        });
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-          showToast('⚠️ ' + (data.error || 'Registration failed.'));
-          return;
-        }
-
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('auth_role', 'OWNER');
-        localStorage.setItem('seller_profile', JSON.stringify(data.seller));
-        localStorage.removeItem('salesman_profile');
-
-        showToast(`🎉 ${data.seller.brandName} registered with ${salesmen.length} sales counters! Opening Master Dashboard...`);
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 700);
-
-      } catch (err) {
-        console.error(err);
-        showToast('⚠️ Connection error.');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = orig;
-      }
-    }
-
-    function showToast(msg) {
-      const toast = document.getElementById('toast');
-      const toastMsg = document.getElementById('toastMsg');
-      if (!toast || !toastMsg) return;
-      toastMsg.innerText = msg;
-      toast.classList.remove('translate-y-20', 'opacity-0');
-      toast.classList.add('translate-y-0', 'opacity-100');
-      setTimeout(() => {
-        toast.classList.add('translate-y-20', 'opacity-0');
-        toast.classList.remove('translate-y-0', 'opacity-100');
-      }, 3000);
-    }
-
-    // Auto-initialize on load
-    document.addEventListener('DOMContentLoaded', () => {
-      loadPublicStores();
-    });
-  </script>
+  <script src="/js/auth.js" defer></script>
 </body>
 </html>

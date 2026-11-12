@@ -1,52 +1,59 @@
-# ✨ Boutique Rails: WhatsApp Micro-Link & Bank Email Automated Dispatch
+# PaySap
 
-> Customized, high-converting checkout rails for boutique fashion labels, Instagram sellers, indie makers, and artisanal brands taking 10–50 orders/day on WhatsApp without gateway aggregator fees.
+A store workspace for WhatsApp orders: create a checkout link, collect delivery details, review payment and manage fulfillment. The application uses Express and browser JavaScript, with locally compiled CSS.
 
----
+## Current status
 
-## 🎯 The Problem This Solves
+PaySap is a modular Express + browser-JavaScript application supporting **PostgreSQL persistence** (`STORAGE_DRIVER=postgres` / `DATABASE_URL` via `PostgresStore` with `BEGIN`/`COMMIT` transactions and `FOR UPDATE` row locking) as well as a **single-process JSON store** (`STORAGE_DRIVER=json`) for local demos and pilots. Read [deployment instructions](DEPLOYMENT.md) and historical notes in [docs/reports/](docs/reports/) before using customer records.
 
-| Traditional WhatsApp Selling | With Boutique Rails |
-|---|---|
-| **Manual Screenshot Verification**<br>Staff checks banking apps to match blurred transfer screenshots, vulnerable to fake receipt apps. | **Automated Bank Email Webhook**<br>Your bank's official credit notification email verifies the exact payable amount and marks the order 🟢 PAID. |
-| **Payment Collisions**<br>Multiple customers paying ₹500 at the same time cannot be differentiated by bank narration. | **Collision-Free Paise Offsets**<br>Concurrent orders of identical value receive unique paise offsets (₹500.00, ₹500.01) with Order Ref in UPI narration. |
-| **Lost Delivery Addresses**<br>Customer addresses are buried across WhatsApp threads without pincodes, causing courier RTO returns. | **Frictionless Pincode Lookup**<br>Customer inputs a 6-digit Indian pincode; City & State auto-fill. Verified address is stored on file. |
-| **Manual Dispatch Entry**<br>Copy-pasting chat details into Excel at 11 PM every night. | **Live Dispatch CRM & Logistics Export**<br>Orders automatically log into the live dispatch table with 1-click CSV download for Shiprocket/Delhivery/Bluedart. |
+Customer UTRs are payment reports, not proof of receipt. Email receipts require owner review by default. Owners can record an independently checked UPI/bank receipt or cash payment through an audited confirmation dialog. Cancelled paid orders enter `REFUND_REQUIRED` and support owner-audited full/partial refund resolution logging (`REFUNDED` / `PARTIALLY_REFUNDED`); refund recording creates an operational ledger record and does not transfer money automatically.
 
----
+## Develop and verify
 
-## 🏗️ Architecture & Component Breakdown
+Use a supported Node.js release compatible with `package.json`.
 
-```
-[ Sales Rep on Phone / Web ]
-         │
-         ▼ Enters: Customer Name, Phone, Item, Base Price (₹)
-[ Sales Link Studio (`/`) ]
-         │
-         ▼ Generates: brand.com/pay?ref=101 + Pre-composed WhatsApp Pitch
-[ WhatsApp Chat with Customer ]
-         │
-         ▼ Customer taps link on mobile
-[ Branded Mobile Checkout (`/pay?ref=101`) ]
-   ├── 1. Pincode Auto-lookup (City/State autofilled)
-   ├── 2. Verified Doorstep Courier Address
-   └── 3. Direct UPI Intent (`upi://pay?pa=...`) or Dynamic QR
-         │
-         ▼ Customer pays via Google Pay / PhonePe / Paytm / BHIM
-[ Bank Email Webhook (`/api/webhook/bank-email`) ]
-   ├── Inbound email parsed from HDFC / ICICI / SBI / Axis
-   ├── Matches Order Ref in narration or unique paise offset
-   ├── 🟢 Updates Status to PAID with Bank UTR & Timestamp
-   ├── 📦 Sets Dispatch Status to PACKING
-   └── 📊 Synchronizes Live Dispatch Board (`/dispatch`) & CSV Export
+```bash
+npm ci
+npm run build
+npm test
 ```
 
----
+`npm test` starts isolated temporary servers on random loopback ports, blocks external network calls, runs regression, theme, mailbox, security, pagination, multi-item, refund-logging, password-reset, and mocked `PostgresStore` transaction tests, and cleans up after itself.
 
-## 🚀 Live Local Endpoints
+```bash
+npm run demo
+```
 
-* **Sales Link Studio:** [http://127.0.0.1:3000](http://127.0.0.1:3000)
-* **Customer Pay Page:** [http://127.0.0.1:3000/pay](http://127.0.0.1:3000/pay)
-* **Live Dispatch Sheet & CRM:** [http://127.0.0.1:3000/dispatch](http://127.0.0.1:3000/dispatch)
-* **CSV Export for Logistics:** [http://127.0.0.1:3000/api/export/csv](http://127.0.0.1:3000/api/export/csv)
-* **Inbound Bank Email Webhook:** `POST /api/webhook/bank-email`
+The demo serves at `http://127.0.0.1:3117`, uses disposable synthetic records, disables bank polling, and prints its test-only login. It removes its temporary records when stopped normally. Set `DEMO_PORT` to use another port. It is the recommended way to review UI changes without touching local store data.
+
+Owners can choose Lavender, Ocean blue, Forest, Rose, Warm sand or Slate in **Settings → Store Profile → Store colours**. Preview a palette, then use **Save colour** to apply it to the workspace and existing customer checkout links. This saves the colour independently of unfinished profile edits.
+
+Inventory editing is available to owners and staff explicitly granted **Inventory Access** in **Settings → Team & Staff PINs**. New staff default to no editing access; revoking a grant blocks further API edits immediately. Other staff can still select products when creating orders.
+
+For normal development, configure `.env` and run `npm run dev`. Production configuration, PostgreSQL setup, encryption key rotation, TLS, backups and deployment are described in [DEPLOYMENT.md](DEPLOYMENT.md).
+
+## Architecture & Product flows
+
+- **Modular backend (`src/`):** `src/app.js`, `src/config/env.js`, `src/middleware/{security.js,auth.js,rateLimit.js}`, `src/services/{orderService.js,mailboxService.js}`, `src/storage/{jsonStore.js,postgresStore.js,index.js}`, and `src/routes/{authRoutes.js,storeRoutes.js,productRoutes.js,orderRoutes.js,bankRoutes.js,utilityRoutes.js}`. `server.js` is the entrypoint.
+- **Security & CSP:** Strict Content-Security-Policy (`script-src 'self'`, `script-src-attr 'none'`) with zero inline `<script>` blocks or `on*=` attributes in HTML/JS templates (`public/js/auth.js`, `public/js/ui-events.js`, `public/js/checkout.js`). Authentication uses `HttpOnly` `SameSite=Lax` cookies protected by CSRF origin validation (`Origin` / `Referer` / `Sec-Fetch-Site`), per-account/PIN login lockouts, and single-use hashed password reset tokens (`POST /api/auth/forgot-password`, `POST /api/auth/reset-password`).
+- **Home:** reported payments, packing queue, missing addresses, delivery follow-up, refund tasks, and unallocated bank receipts.
+- **New order:** customer number, multi-item order builder (`items[]` with searchable catalog items, quantities, shipping charge, and discount), private notes and customer-visible instructions. Create first, then explicitly share.
+- **Checkout (`public/pay.html`):** itemized bill breakdown, delivery details, phone UPI or desktop QR, voluntary reference reporting, pending/review state, confirmed receipt, and refund status display.
+- **Orders:** lightweight summary polling (`GET /api/orders/summary`), server-side pagination/filtering (`GET /api/orders?page=&limit=`), owner payment review, guarded fulfillment transitions, owner refund resolution logging (`POST /api/orders/:tokenOrRef/refund`), tracking and CSV download.
+- **Staff:** exact store lookup, explicit hashed PIN credentials, permission-scoped orders and optional inventory access.
+
+The server returns random token links for customer checkout. Human-readable references are for authenticated staff; old customer links using only sequential references must be replaced with token links.
+
+## Important operating boundaries
+
+- **Persistence drivers:** Configure `DATABASE_URL` (and optionally `STORAGE_DRIVER=postgres`) for PostgreSQL with schema `migrations/001_initial_schema.sql`. Use `npm run migrate` (`scripts/migrate_json_to_postgres.js`) to import existing JSON snapshots into PostgreSQL. If using JSON mode (`STORAGE_DRIVER=json` or `DATABASE_URL` unset), run **at most one application process**.
+- Production startup requires unique `ENCRYPTION_KEY`, `WEBHOOK_SHARED_SECRET` and a canonical HTTPS `APP_URL`. Keep a recovery copy of `ENCRYPTION_KEY`. To rotate `ENCRYPTION_KEY` without losing stored IMAP/OAuth credentials, run `OLD_ENCRYPTION_KEY=... NEW_ENCRYPTION_KEY=... node scripts/rotate-encryption-key.js --write`.
+- Set `PASSWORD_RESET_WEBHOOK_URL` if you want owner password-reset tokens delivered to a mail/notification relay. Without it, public API responses never expose raw reset tokens.
+- Email checks and confirmation mode are controlled separately in **Settings → UPI & Banking → Email monitoring**. Use **Save email settings** to persist these controls independently of profile edits. Automatic mode requires authenticated bank evidence, a matching order/reference, amount and receipt time; other receipts stay in review. `ENABLE_EMAIL_AUTO_CONFIRMATION` remains the legacy default for stores without an explicit choice. A per-store review or automatic selection takes precedence.
+- Gmail production eligibility/verification, real-device UPI testing, and actual backup restoration drills remain launch responsibilities.
+- CSV download is a generic order export, not a direct courier or spreadsheet integration.
+- Runtime merchant files (`data/*.json`) must stay out of version control. Review previously committed data and rotate any exposed credentials; ignoring a path does not erase Git history.
+
+## Styling
+
+Run `npm run build` after changing utility classes in public HTML/JavaScript. Commit the generated `public/css/tailwind.css`; production runtime does not execute the Tailwind CDN. `public/css/app.css` contains the workspace design, while customer checkout has scoped styles. CI checks that generated CSS is current.

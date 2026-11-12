@@ -6,8 +6,14 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node test_access_separation.js && node test_pm_fixes.js",
-    "migrate": "node scripts/migrate_json_to_postgres.js"
+    "build": "npm run build:css",
+    "build:css": "tailwindcss -c tailwind.config.cjs -i styles/tailwind.css -o public/css/tailwind.css --minify",
+    "test": "node --test tests/regression.test.js tests/themes.test.js tests/mailbox.test.js tests/features_and_security.test.js",
+    "migrate": "node scripts/migrate_json_to_postgres.js",
+    "demo": "node scripts/preview-demo.js"
+  },
+  "engines": {
+    "node": "^24.0.0 || ^26.0.0"
   },
   "dependencies": {
     "compression": "^1.8.2",
@@ -19,5 +25,10 @@
     "imapflow": "^2.10.0",
     "mailparser": "^3.14.1",
     "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/container-queries": "^0.1.1",
+    "@tailwindcss/forms": "^0.5.11",
+    "tailwindcss": "^3.4.19"
   }
 }

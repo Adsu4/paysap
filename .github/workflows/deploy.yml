@@ -1,45 +1,37 @@
-name: PaySap Production CI/CD
+name: PaySap verification
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  test-and-verify:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout Code
+      - name: Check out code
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
+      - name: Use supported Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install Dependencies
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
         run: npm ci
+      - name: Compile local styles
+        run: npm run build
+      - name: Check committed production CSS is current
+        run: git diff --exit-code -- public/css/tailwind.css
+      - name: Verify isolated security, feature and regression suite
+        run: npm test
+      - name: Validate backup shell syntax
+        run: bash -n scripts/backup.sh
 
-      - name: Execute RBAC Access Separation Test Suite
-        run: node test_access_separation.js
-
-      - name: Execute Senior PM Integrity Test Suite
-        run: node test_pm_fixes.js
-
-  deploy:
-    needs: test-and-verify
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Deploy to DigitalOcean Droplet
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.DROPLET_HOST }}
-          username: deployer
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /home/deployer/apps/boutique-paylink
-            git pull origin main
-            npm install --production
-            pm2 reload ecosystem.config.js --update-env
-            echo "🚀 PaySap Production deployment successfully executed at $(date)"
+# Deployment stays manual until the real host, secrets, backup target and rollback
+# procedure are configured. See DEPLOYMENT.md. A green test result must never imply
+# that an unconfigured production deployment succeeded.

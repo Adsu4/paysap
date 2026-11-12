@@ -6,6 +6,8 @@ let cachedOrders = [];
 let cachedProducts = [];
 let currentFilter = 'ALL';
 let pollingTimer = null;
+let ordersFetchInFlight = false;
+let pendingMasterRefresh = false;
 let currentSeller = null;
 let currentRole = 'OWNER'; // 'OWNER' or 'SALESMAN'
 let currentSalesman = null;
@@ -20,32 +22,26 @@ let currentStockAccess = false; // Owner or salesmen with stockAccess: true
 let stockFilterCategory = 'ALL';
 let stockSearchQuery = '';
 
-// Auth token helper
+// Cookie-only session auth helper: merchant auth uses HttpOnly SameSite=Lax cookies;
+// strip any legacy ?token= query param and purge legacy localStorage tokens.
 function getAuthToken() {
+  try {
+    localStorage.removeItem('auth_token');
+  } catch (_) {}
   const urlParams = new URLSearchParams(window.location.search);
-  const urlToken = urlParams.get('token');
-  if (urlToken) {
-    localStorage.setItem('auth_token', urlToken);
-    // Sanitize token from browser address bar to prevent token leakage in screenshots, history, or HTTP referrers
+  if (urlParams.has('token')) {
     urlParams.delete('token');
     const newSearch = urlParams.toString();
     const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash;
     try {
       window.history.replaceState({}, document.title, newUrl);
     } catch (_) {}
-    return urlToken;
   }
-  return localStorage.getItem('auth_token') || '';
+  return '';
 }
 
 function getAuthHeaders(extraHeaders = {}) {
-  const token = getAuthToken();
-  const headers = { ...extraHeaders };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-    headers['x-auth-token'] = token;
-  }
-  return headers;
+  return { ...extraHeaders };
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -58,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 3. Load product catalog from database
   await fetchProductCatalog();
+  window.PaySapExperience?.init();
 
   // Attach live preview typing listeners in Quick Builder
   ['custName', 'custPhone', 'itemDesc', 'orderValue', 'itemSku'].forEach(id => {
@@ -129,9 +126,8 @@ function startLivePolling() {
     clearInterval(pollingTimer);
     pollingTimer = null;
   }
-  // When mobile tab is hidden or phone screen is locked, back off to 12s to preserve battery; when active, run 1.5s live radar
-  const interval = isPageHidden ? 12000 : 1500;
-  pollingTimer = setInterval(fetchOrdersAndMetrics, interval);
+  const interval = isPageHidden ? 30000 : 5000;
+  pollingTimer = setInterval(() => fetchOrdersAndMetrics(false), interval);
 }
 
 // Page Visibility API: instantaneously refresh metrics and restore high-frequency radar when user re-enters app
@@ -141,19 +137,20 @@ document.addEventListener('visibilitychange', () => {
     startLivePolling();
   } else {
     isPageHidden = false;
-    fetchOrdersAndMetrics();
+    fetchOrdersAndMetrics(false);
     startLivePolling();
   }
 });
 
 // Network online/offline detection
 window.addEventListener('offline', () => {
-  showToast('📡 You are offline. Changes will sync when reconnected.');
+  window.PaySapExperience?.setSync('offline');
+  showToast('You are offline. Your order draft stays in this tab. Reconnect to save changes.');
 });
 
 window.addEventListener('online', () => {
-  showToast('⚡ Reconnected! Live radar active.');
-  fetchOrdersAndMetrics();
+  showToast('Reconnected. Refreshing your orders…');
+  fetchOrdersAndMetrics(true);
   startLivePolling();
 });
 
@@ -173,11 +170,18 @@ async function checkAuthAndLoadSeller() {
     }
 
     currentSeller = data.seller;
+    window.PaySapTheme?.apply(currentSeller.themeId || currentSeller.brandColor);
     currentRole = data.role || 'OWNER';
     currentSalesman = data.salesman || null;
-    currentStockAccess = data.stockAccess !== undefined ? Boolean(data.stockAccess) : (currentRole === 'OWNER');
+    currentStockAccess = currentRole === 'OWNER' || data.stockAccess === true;
+    const catalogueSave = document.getElementById('chkSaveToCatalog');
+    if (catalogueSave) {
+      catalogueSave.checked = currentStockAccess && catalogueSave.checked;
+      catalogueSave.disabled = !currentStockAccess;
+      catalogueSave.closest('label')?.classList.toggle('hidden', !currentStockAccess);
+    }
 
-    localStorage.setItem('seller_profile', JSON.stringify(currentSeller));
+    localStorage.removeItem('seller_profile');
     localStorage.setItem('auth_role', currentRole);
     if (currentSalesman) {
       localStorage.setItem('salesman_profile', JSON.stringify(currentSalesman));
@@ -186,7 +190,6 @@ async function checkAuthAndLoadSeller() {
     // Update Header with Store Name & powered by PaySap
     const headerBrandName = document.getElementById('headerBrandName');
     const headerUpiId = document.getElementById('headerUpiId');
-    const headerAvatar = document.getElementById('headerAvatar');
     const storeLogoIcon = document.getElementById('storeLogoIcon');
     const headerRoleBadge = document.getElementById('headerRoleBadge');
     const navBtnMaster = document.getElementById('navBtnMaster');
@@ -202,11 +205,7 @@ async function checkAuthAndLoadSeller() {
       if (storeLogoIcon) {
         storeLogoIcon.innerHTML = `<img src="${escapeHtml(currentSeller.storeLogo)}" alt="Logo" class="w-full h-full object-cover rounded-2xl"/>`;
       }
-      if (headerAvatar) {
-        headerAvatar.innerHTML = `<img src="${escapeHtml(currentSeller.storeLogo)}" alt="Logo" class="w-full h-full object-cover rounded-full"/>`;
-      }
     } else {
-      if (headerAvatar) headerAvatar.textContent = initials;
       if (storeLogoIcon) storeLogoIcon.textContent = initials;
     }
 
@@ -235,7 +234,7 @@ async function checkAuthAndLoadSeller() {
 
     if (currentRole === 'SALESMAN' && currentSalesman) {
       if (kpiRevLabel) kpiRevLabel.textContent = 'My Sales:';
-      if (kpiCreatedLabel) kpiCreatedLabel.textContent = 'My Links:';
+      if (kpiCreatedLabel) kpiCreatedLabel.textContent = 'My orders:';
 
       if (headerRoleBadge) {
         const stockPill = currentStockAccess ? ' • 📦 Stock Access' : '';
@@ -247,11 +246,11 @@ async function checkAuthAndLoadSeller() {
       syncNavTabsVisibility();
       switchMainView('STUDIO');
     } else {
-      if (kpiRevLabel) kpiRevLabel.textContent = 'Gross Revenue:';
-      if (kpiCreatedLabel) kpiCreatedLabel.textContent = 'Links:';
+      if (kpiRevLabel) kpiRevLabel.textContent = 'Received:';
+      if (kpiCreatedLabel) kpiCreatedLabel.textContent = 'Orders:';
 
       if (headerRoleBadge) {
-        headerRoleBadge.innerHTML = `<span class="text-indigo-700 font-extrabold flex items-center gap-1">👑 Store Owner (Master)</span>`;
+        headerRoleBadge.textContent = 'Store owner';
       }
       if (headerMasterNav) {
         headerMasterNav.classList.remove('hidden');
@@ -330,9 +329,9 @@ async function fetchProductCatalog(showToastOnSuccess = false) {
           : '';
 
         return `
-          <button 
-            type="button" 
-            onclick="handleCatalogSelect('${p.sku}')" 
+          <button
+            type="button"
+            data-click="handleCatalogSelect" data-arg="${escapeHtml(p.sku)}"
             class="px-2.5 py-1 ${chipClasses} border text-xs font-semibold rounded-lg shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer">
             <span class="font-mono text-indigo-600 font-bold text-[10px]">#${p.sku}</span>
             <span class="truncate max-w-[130px]">${escapeHtml(p.name)}</span>
@@ -343,7 +342,7 @@ async function fetchProductCatalog(showToastOnSuccess = false) {
       }).join('');
     }
 
-    // Refresh Stock CRM table if rendered
+    // Refresh Inventory table if rendered
     renderStockCrmTable();
 
     if (showToastOnSuccess) {
@@ -371,7 +370,7 @@ function checkAndEnforceProductStock(product) {
       btnSubmitGenerate.disabled = false;
       btnSubmitGenerate.className = 'mt-1 w-full h-12 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-emerald-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer';
     }
-    if (btnSubmitGenerateText) btnSubmitGenerateText.textContent = '📲 Send Order Link via WhatsApp';
+    if (btnSubmitGenerateText) btnSubmitGenerateText.textContent = 'Create checkout link';
     return true;
   }
 
@@ -407,7 +406,7 @@ function checkAndEnforceProductStock(product) {
       btnSubmitGenerate.className = 'mt-1 w-full h-12 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-emerald-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer';
     }
     if (btnSubmitGenerateText) {
-      btnSubmitGenerateText.textContent = '📲 Send Order Link via WhatsApp';
+      btnSubmitGenerateText.textContent = 'Create checkout link';
     }
     if (stockStatusIndicator) {
       stockStatusIndicator.className = 'flex items-center gap-1 font-medium text-emerald-600';
@@ -519,6 +518,7 @@ function lookupSku(val) {
 
 // Seller Logout
 async function handleLogout() {
+  window.PaySapExperience?.clearSession();
   try {
     await fetch('/api/auth/logout', {
       method: 'POST',
@@ -663,7 +663,7 @@ function renderActionQueueContent() {
   container.innerHTML = queueOrders.map(order => {
     const payable = (order.payableAmount !== undefined ? order.payableAmount : order.amount).toFixed(2);
     const origin = window.location.origin;
-    const payUrl = `${origin}/pay?ref=${order.ref}`;
+    const payUrl = `${origin}/pay?token=${encodeURIComponent(order.token)}`;
     const cleanPhone = (order.customerPhone || '').replace(/\D/g, '').slice(-10);
 
     let timingText = '';
@@ -673,7 +673,7 @@ function renderActionQueueContent() {
     } else if (steps.opened && steps.opened.done && steps.opened.time) {
       timingText = `Opened ${timeAgo(steps.opened.time)}`;
     } else {
-      timingText = `Shared ${timeAgo(order.createdAt)}`;
+      timingText = `Created ${timeAgo(order.createdAt)}`;
     }
 
     const cleanName = (order.customerName || '').trim();
@@ -719,7 +719,7 @@ function renderActionQueueContent() {
                 <span>Call Client</span>
               </a>
             ` : `
-              <button type="button" onclick="activateTab('${order.ref}')" class="h-9 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer">
+              <button type="button" data-click="activateTab" data-arg="${escapeHtml(order.ref)}" class="h-9 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer">
                 <span>View Cockpit</span>
                 <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
               </button>
@@ -727,11 +727,11 @@ function renderActionQueueContent() {
           </div>
 
           <div class="grid grid-cols-2 gap-2 mt-0.5">
-            <button type="button" onclick="shareOrderLinkMobile('${order.ref}', '${payUrl}', '${escapeHtml(order.itemDescription).replace(/'/g, "\\'")}', '${payable}')" class="h-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer">
+            <button type="button" data-click="shareOrderLinkMobile" data-ref="${escapeHtml(order.ref)}" data-url="${escapeHtml(payUrl)}" data-desc="${escapeHtml(order.itemDescription)}" data-amt="${escapeHtml(String(payable))}" class="h-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer">
               <span class="material-symbols-outlined text-[14px]">share</span>
               <span>Share Link</span>
             </button>
-            <button type="button" onclick="activateTab('${order.ref}')" class="h-8 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer">
+            <button type="button" data-click="activateTab" data-arg="${escapeHtml(order.ref)}" class="h-8 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer">
               <span>Radar Cockpit</span>
               <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
             </button>
@@ -802,6 +802,7 @@ function activateTab(tabId) {
   }
 
   updateQueueButtonStyles();
+  window.PaySapExperience?.navigation();
 }
 
 // Update Action Queue badge counts and active tab styles
@@ -831,9 +832,10 @@ function renderTabs() {
 // Render the Live Sale Cockpit with the 5 Customer Steps & Master Spreadsheet Sync
 function renderCockpit(order) {
   if (!order) return;
+  window.PaySapExperience?.renderOrderReview(order);
 
   const origin = window.location.origin;
-  const payUrl = `${origin}/pay?ref=${order.ref}`;
+  const payUrl = `${origin}/pay?token=${encodeURIComponent(order.token)}`;
   const payableAmt = (order.payableAmount !== undefined ? order.payableAmount : order.amount).toFixed(2);
   const baseAmt = Number(order.amount).toFixed(2);
   const hasOffset = Number(payableAmt) !== Number(baseAmt);
@@ -845,7 +847,7 @@ function renderCockpit(order) {
   const cockpitItemDesc = document.getElementById('cockpitItemDesc');
   const cockpitPayableAmount = document.getElementById('cockpitPayableAmount');
   const cockpitBaseAmount = document.getElementById('cockpitBaseAmount');
-  const cockpitPaiseBadge = document.getElementById('cockpitPaiseBadge');
+  const cockpitLinkBadge = document.getElementById('cockpitLinkBadge');
   const btnCockpitTestView = document.getElementById('btnCockpitTestView');
 
   if (cockpitRefBadge) cockpitRefBadge.textContent = `REF #${order.ref}`;
@@ -858,8 +860,8 @@ function renderCockpit(order) {
   }
   if (cockpitPayableAmount) cockpitPayableAmount.textContent = `₹${payableAmt}`;
   if (cockpitBaseAmount) cockpitBaseAmount.textContent = `(Base ₹${baseAmt})`;
-  if (cockpitPaiseBadge) {
-    cockpitPaiseBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active Link`;
+  if (cockpitLinkBadge) {
+    cockpitLinkBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active Link`;
   }
 
   if (btnCockpitTestView) {
@@ -878,7 +880,7 @@ function renderCockpit(order) {
   if (cockpitStatusPill) {
     if (isPaid) {
       cockpitStatusPill.className = 'px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border border-emerald-300';
-      cockpitStatusPill.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> PAYMENT CONFIRMED & RESERVED`;
+      cockpitStatusPill.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> PAYMENT RECEIVED`;
     } else if (isRedirected) {
       cockpitStatusPill.className = 'px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 bg-purple-100 text-purple-800 border border-purple-300';
       cockpitStatusPill.innerHTML = `<span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span> IN PAYMENT APP (${steps.redirectedToPayment.app || 'UPI'})`;
@@ -916,7 +918,7 @@ function renderCockpit(order) {
   const step1Time = document.getElementById('step1Time');
   if (step1Time) {
     const timeStr = formatStepTime(steps.shared && steps.shared.time ? steps.shared.time : order.createdAt);
-    step1Time.textContent = `Sent ${timeStr}`;
+    step1Time.textContent = `Created ${timeStr}`;
   }
 
   // --- Step 2: Link Viewed ---
@@ -939,7 +941,7 @@ function renderCockpit(order) {
         step2Tag.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span> WAITING`;
       }
       step2Title.textContent = 'Waiting for Customer';
-      step2Desc.textContent = 'Link delivered on WhatsApp. Waiting for customer to open...';
+      step2Desc.textContent = 'No checkout visit has been recorded yet.';
       step2Time.className = 'pt-2 border-t border-amber-200/70 text-[10px] text-amber-800 font-bold';
       step2Time.textContent = 'Awaiting customer tap';
     } else {
@@ -1103,7 +1105,7 @@ function renderCockpit(order) {
         step5Tag.textContent = 'STEP 5 • SETTLED';
       }
       step5Title.textContent = 'Paid & Confirmed';
-      step5Desc.textContent = `Verified Bank UTR: ${order.utr || 'Auto-Verified'}. Logged for dispatch.`;
+      step5Desc.textContent = `Payment reference: ${order.utr || 'Owner reviewed'}. Logged for dispatch.`;
       step5Time.className = 'pt-2 border-t border-emerald-100 text-[10px] text-emerald-700 font-semibold';
       step5Time.textContent = `Confirmed ${formatStepTime(order.paidAt || steps.paymentConfirmed?.time || order.createdAt)}`;
     } else if (isRedirected) {
@@ -1118,9 +1120,9 @@ function renderCockpit(order) {
       }
       step5Title.textContent = 'Awaiting Bank Alert';
       const manualConfirmBtn = currentRole === 'OWNER' ? `
-        <button type="button" onclick="markCockpitOrderPaid()" class="w-full mt-2 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer">
+        <button type="button" data-click="markCockpitOrderPaid" class="w-full mt-2 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer">
           <span class="material-symbols-outlined text-[14px]">check_circle</span>
-          <span>Mark Paid Manually</span>
+          <span>Confirm received Manually</span>
         </button>` : '';
       step5Desc.innerHTML = `Scanning inbox for incoming bank credit of ₹${payableAmt}...${manualConfirmBtn}`;
       step5Time.className = 'pt-2 border-t border-purple-200/70 text-[10px] text-purple-800 font-bold';
@@ -1137,11 +1139,11 @@ function renderCockpit(order) {
       }
       step5Title.textContent = 'Paid & Confirmed';
       const manualConfirmBtn = currentRole === 'OWNER' ? `
-        <button type="button" onclick="markCockpitOrderPaid()" class="w-full mt-2 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer">
+        <button type="button" data-click="markCockpitOrderPaid" class="w-full mt-2 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer">
           <span class="material-symbols-outlined text-[14px]">check_circle</span>
-          <span>Mark Paid Manually</span>
+          <span>Confirm received Manually</span>
         </button>` : '';
-      step5Desc.innerHTML = `Awaiting verified bank settlement.${manualConfirmBtn}`;
+      step5Desc.innerHTML = `Awaiting payment confirmation from the store.${manualConfirmBtn}`;
       step5Time.className = 'pt-2 border-t border-slate-200/60 text-[10px] text-slate-400 font-medium';
       step5Time.textContent = 'Pending settlement';
     }
@@ -1158,11 +1160,11 @@ function renderCockpit(order) {
             <span class="material-symbols-outlined text-[20px]">task_alt</span>
           </div>
           <div>
-            <p class="font-bold text-slate-900">Payment Confirmed & Order Reserved!</p>
-            <p class="text-slate-500 mt-0.5">Bank Reference <b>${escapeHtml(order.utr || 'Auto-Verified')}</b> recorded. Ready for packaging & dispatch.</p>
+            <p class="font-bold text-slate-900">Payment recorded</p>
+            <p class="text-slate-500 mt-0.5">Bank Reference <b>${escapeHtml(order.utr || 'Owner reviewed')}</b> recorded. Check delivery details before fulfillment.</p>
           </div>
         </div>
-        <button type="button" onclick="setMasterTab('dispatch')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shrink-0 whitespace-nowrap cursor-pointer">
+        <button type="button" data-click="setMasterTab" data-arg="dispatch" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shrink-0 whitespace-nowrap cursor-pointer">
           Open Dispatch Board →
         </button>
       `;
@@ -1179,13 +1181,9 @@ function renderCockpit(order) {
           </div>
         </div>
         <div class="flex items-center gap-2 shrink-0 flex-wrap">
-          <button type="button" onclick="markCockpitOrderPaid()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm cursor-pointer transition-all" title="Manually verify & mark PAID">
+          <button type="button" data-click="markCockpitOrderPaid" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm cursor-pointer transition-all" title="Manually verify & mark PAID">
             <span class="material-symbols-outlined text-[15px]">check_circle</span>
             <span>Confirm Payment</span>
-          </button>
-          <button type="button" onclick="triggerTestBankWebhook()" class="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold rounded-xl text-xs flex items-center gap-1 border border-purple-300 cursor-pointer transition-all" title="Simulate bank alert for this order">
-            <span class="material-symbols-outlined text-[15px]">flash_on</span>
-            <span>Simulate Bank Alert</span>
           </button>
         </div>
       `;
@@ -1201,7 +1199,7 @@ function renderCockpit(order) {
             <p class="text-slate-500 mt-0.5">Shipping to ${escapeHtml(order.address?.city || 'destination')}. Awaiting UPI payment completion.</p>
           </div>
         </div>
-        <button type="button" onclick="openWhatsAppForCockpit()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors shrink-0 whitespace-nowrap cursor-pointer">
+        <button type="button" data-click="openWhatsAppForCockpit" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors shrink-0 whitespace-nowrap cursor-pointer">
           Send Friendly WhatsApp Nudge
         </button>
       `;
@@ -1230,10 +1228,10 @@ function renderCockpit(order) {
           </div>
           <div>
             <p class="font-bold text-slate-900">Waiting for customer response</p>
-            <p class="text-slate-500 mt-0.5">Order link shared via WhatsApp. Waiting for customer to open link on mobile...</p>
+            <p class="text-slate-500 mt-0.5">Checkout link created. Share it with the customer when ready.</p>
           </div>
         </div>
-        <button type="button" onclick="openWhatsAppForCockpit()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shrink-0 whitespace-nowrap cursor-pointer">
+        <button type="button" data-click="openWhatsAppForCockpit" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shrink-0 whitespace-nowrap cursor-pointer">
           Re-send WhatsApp Link
         </button>
       `;
@@ -1250,14 +1248,14 @@ function renderCockpit(order) {
     const paymentCol = isPaid
       ? `<span class="font-mono font-bold text-emerald-700 flex items-center gap-1.5">
            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-           ${escapeHtml(order.utr || 'Auto-Verified')}
+           ${escapeHtml(order.utr || 'Owner reviewed')}
          </span>`
       : `<span class="text-amber-700 font-medium italic flex items-center gap-1">
            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
            Pending Settlement
          </span>`;
 
-    const dispatchCol = isPaid
+    const dispatchCol = isPaid && !order.address ? '<span class="text-amber-700">DELIVERY DETAILS NEEDED</span>' : isPaid
       ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] border border-emerald-200">READY TO SHIP</span>`
       : `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px] border border-amber-200">AWAITING PAYMENT</span>`;
 
@@ -1289,20 +1287,117 @@ function renderCockpit(order) {
       </tr>
     `;
   }
+  window.PaySapExperience?.finalizeOrderDetails(order);
 }
 
 // Adjust order amount via pill buttons
 function adjustAmount(delta) {
   const input = document.getElementById('orderValue');
-  let val = parseInt(input.value) || 0;
+  let val = parseFloat(input.value) || 0;
   val += delta;
-  input.value = Math.max(val, 50);
+  input.value = Math.max(val, 0.01).toFixed(2);
+  window.PaySapExperience?.persistDraft();
   syncLivePitch();
 }
 
 function setExactAmount(amount) {
   const input = document.getElementById('orderValue');
   input.value = amount;
+  syncLivePitch();
+}
+
+let orderLineItems = [];
+
+function renderOrderLineItems() {
+  const section = document.getElementById('orderLineItemsSection');
+  const listEl = document.getElementById('orderLineItemsList');
+  const orderValueEl = document.getElementById('orderValue');
+  if (!section || !listEl) return;
+
+  if (orderLineItems.length === 0) {
+    section.classList.add('hidden');
+    listEl.innerHTML = '';
+    if (orderValueEl) orderValueEl.readOnly = false;
+    return;
+  }
+
+  section.classList.remove('hidden');
+  if (orderValueEl) orderValueEl.readOnly = true;
+
+  listEl.innerHTML = orderLineItems.map((item, idx) => `
+    <div class="grid grid-cols-12 gap-1.5 items-center bg-slate-50 border border-slate-200 rounded-xl p-2">
+      <input type="text" value="${escapeHtml(item.name || '')}" data-input="updateOrderLineItemField" data-change="updateOrderLineItemField" data-idx="${idx}" data-field="name" placeholder="Item name" class="col-span-5 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold outline-none focus:border-indigo-500"/>
+      <input type="number" min="1" step="1" value="${Number(item.quantity) || 1}" data-input="updateOrderLineItemField" data-change="updateOrderLineItemField" data-idx="${idx}" data-field="quantity" aria-label="Quantity" class="col-span-2 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono font-bold text-center outline-none focus:border-indigo-500"/>
+      <input type="number" min="0.01" step="0.01" value="${Number(item.unitPrice) || ''}" data-input="updateOrderLineItemField" data-change="updateOrderLineItemField" data-idx="${idx}" data-field="unitPrice" placeholder="Price ₹" class="col-span-4 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono font-bold outline-none focus:border-indigo-500"/>
+      <button type="button" data-click="removeOrderLineItem" data-arg="${idx}" class="col-span-1 text-slate-400 hover:text-rose-600 text-xs font-bold cursor-pointer text-center" title="Remove item">✕</button>
+    </div>
+  `).join('');
+  recomputeOrderLineItems();
+}
+
+function addOrderLineItem() {
+  if (orderLineItems.length === 0) {
+    const existingName = (document.getElementById('itemDesc')?.value || '').trim();
+    const existingSku = (document.getElementById('itemSku')?.value || '').trim();
+    const existingPrice = parseFloat(document.getElementById('orderValue')?.value || '0') || 0;
+    if (existingName || existingPrice > 0) {
+      orderLineItems.push({
+        sku: existingSku,
+        name: existingName || 'Item 1',
+        quantity: 1,
+        unitPrice: existingPrice > 0 ? existingPrice : 0
+      });
+    }
+  }
+  orderLineItems.push({ sku: '', name: '', quantity: 1, unitPrice: 0 });
+  renderOrderLineItems();
+}
+
+function removeOrderLineItem(idx) {
+  orderLineItems.splice(idx, 1);
+  renderOrderLineItems();
+  if (orderLineItems.length === 0) {
+    recomputeOrderLineItems();
+  }
+}
+
+function updateOrderLineItemField(idx, field, value) {
+  const row = orderLineItems[idx];
+  if (!row) return;
+  if (field === 'quantity') row.quantity = Math.max(1, parseInt(value, 10) || 1);
+  else if (field === 'unitPrice') row.unitPrice = Math.max(0, parseFloat(value) || 0);
+  else if (field === 'sku') row.sku = String(value || '').trim().toUpperCase();
+  else row.name = String(value || '');
+  recomputeOrderLineItems();
+}
+
+function recomputeOrderLineItems() {
+  const shipping = Math.max(0, parseFloat(document.getElementById('orderShippingAmount')?.value || '0') || 0);
+  const discount = Math.max(0, parseFloat(document.getElementById('orderDiscountAmount')?.value || '0') || 0);
+  const summaryEl = document.getElementById('orderBreakdownSummary');
+  const orderValueEl = document.getElementById('orderValue');
+  const itemDescEl = document.getElementById('itemDesc');
+
+  if (orderLineItems.length > 0) {
+    const subtotal = orderLineItems.reduce((sum, it) => sum + ((Number(it.unitPrice) || 0) * (Number(it.quantity) || 1)), 0);
+    const total = Math.max(0, Math.round((subtotal + shipping - discount) * 100) / 100);
+    if (orderValueEl) orderValueEl.value = total > 0 ? total.toFixed(2) : '';
+    const descNames = orderLineItems.map(it => {
+      const q = Number(it.quantity) || 1;
+      const nm = (it.name || '').trim();
+      if (!nm) return '';
+      return q > 1 ? `${nm} × ${q}` : nm;
+    }).filter(Boolean);
+    if (descNames.length && itemDescEl) {
+      itemDescEl.value = descNames.join(', ');
+    }
+    if (summaryEl) {
+      summaryEl.textContent = `Items ₹${subtotal.toFixed(2)}${shipping > 0 ? ` + Ship ₹${shipping.toFixed(2)}` : ''}${discount > 0 ? ` − Disc ₹${discount.toFixed(2)}` : ''} = ₹${total.toFixed(2)}`;
+    }
+  } else if (summaryEl) {
+    summaryEl.textContent = '';
+  }
+  window.PaySapExperience?.persistDraft();
   syncLivePitch();
 }
 
@@ -1316,16 +1411,22 @@ function clearForm() {
   const catalogSelect = document.getElementById('catalogSelect');
   const chkSaveToCatalog = document.getElementById('chkSaveToCatalog');
   const skuStatusNotice = document.getElementById('skuStatusNotice');
+  const shippingEl = document.getElementById('orderShippingAmount');
+  const discountEl = document.getElementById('orderDiscountAmount');
 
   if (custName) custName.value = "";
   if (custPhone) custPhone.value = "";
   if (itemSku) itemSku.value = "";
   if (itemDesc) itemDesc.value = "";
-  if (orderValue) orderValue.value = "";
+  if (orderValue) { orderValue.value = ""; orderValue.readOnly = false; }
   if (internalNotes) internalNotes.value = "";
   if (catalogSelect) catalogSelect.value = "";
   if (chkSaveToCatalog) chkSaveToCatalog.checked = false;
   if (skuStatusNotice) skuStatusNotice.textContent = "Printed on bill";
+  if (shippingEl) shippingEl.value = "";
+  if (discountEl) discountEl.value = "";
+  orderLineItems = [];
+  renderOrderLineItems();
 
   // Hide WhatsApp button before generation
   const preNotice = document.getElementById('preGenerateNotice');
@@ -1334,8 +1435,10 @@ function clearForm() {
   if (postActions) postActions.classList.add('hidden');
 
   activeRefNumber = null;
+  activeOrder = null;
+  window.PaySapExperience?.resetDraft();
   syncLivePitch();
-  showToast("Quick Checkout Builder cleared");
+  showToast("Ready for a new order");
 }
 
 function syncLivePitch() {
@@ -1354,7 +1457,7 @@ function syncLivePitch() {
 
   if (!name && !item && !amount) {
     if (pitchPreview) {
-      pitchPreview.innerHTML = `<span class="text-slate-400 italic">Select an item from the database or enter details on the left to generate your live WhatsApp pitch and checkout rail.</span>`;
+      pitchPreview.innerHTML = `<span class="text-slate-400 italic">Choose a product or enter an item and total. Your message and link will appear here.</span>`;
     }
     if (displayUrl) {
       displayUrl.textContent = 'Link will be generated upon creation';
@@ -1366,22 +1469,23 @@ function syncLivePitch() {
     return;
   }
 
-  const formattedAmount = '₹' + Math.floor(amount).toLocaleString('en-IN');
+  const formattedAmount = '₹' + Number(amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   const origin = window.location.origin;
-  const url = activeRefNumber ? `${origin}/pay?ref=${activeRefNumber}` : `${origin}/pay`;
+  const created = window.PaySapExperience?.getCreated();
+  const url = created?.payUrl || (created?.order?.token ? `${origin}/pay?token=${encodeURIComponent(created.order.token)}` : '');
   
   const cleanPitchName = name.trim();
   const greeting = cleanPitchName ? `Hi ${cleanPitchName.split(' ')[0]}!` : 'Hello!';
   const brand = (currentSeller && currentSeller.brandName) || 'Store';
-  const pitch = `${greeting} ✨ Your order for *${item || 'Product'}* (${formattedAmount}) with ${brand} is ready.\n\nTap below to confirm your shipping address & pay securely via GPay/PhonePe/UPI:\n👉 ${url}\n\nFast express dispatch upon confirmation!`;
+  const pitch = created?.whatsappPitch || `${greeting} Your order for *${item || 'your item'}* (${formattedAmount}) with ${brand}.\n\n${url ? 'Add your delivery details and pay here:\n' + url : 'Your checkout link will appear after you create the order.'}`;
 
   if (pitchPreview) pitchPreview.textContent = pitch;
   if (displayUrl) {
-    displayUrl.textContent = url;
-    displayUrl.href = url;
+    displayUrl.textContent = url || 'Create an order to get a shareable link';
+    if (url) displayUrl.href = url; else displayUrl.removeAttribute('href');
   }
   if (btnOpenCheckoutTab) btnOpenCheckoutTab.href = url;
-  if (charCount) charCount.textContent = `${pitch.length} chars • Live instant pitch`;
+  if (charCount) charCount.textContent = url ? 'Ready to share · exact order total' : 'Preview · link not created yet';
   if (qrUrlDisplay) qrUrlDisplay.textContent = url;
   if (qrAmountDisplay) qrAmountDisplay.textContent = formattedAmount;
   if (activeRailRefBadge) {
@@ -1406,127 +1510,115 @@ let isCreatingOrder = false;
 // Generate new sale from the builder form (Unified 1-Tap WhatsApp Flow)
 async function handleCreateOrder() {
   if (isCreatingOrder) return;
+  const form = document.getElementById('linkGeneratorForm');
+  if (form && !form.reportValidity()) return;
+  if (!navigator.onLine) { window.PaySapExperience?.showError('You’re offline. Your draft is saved in this tab. Reconnect and try again.'); return; }
+  if (window.PaySapExperience?.getCreated()) { showToast('This link is already created. Share it below or choose Next customer.'); return; }
+  const rawPhone = (document.getElementById('custPhone')?.value || '').replace(/\D/g, '');
+  const phone = rawPhone.length === 12 && rawPhone.startsWith('91') ? rawPhone.slice(2) : rawPhone;
+  if (!/^[6-9]\d{9}$/.test(phone)) { window.PaySapExperience?.showError('Enter a valid 10-digit Indian mobile number, with or without +91.'); return; }
+  const shippingAmount = Math.max(0, parseFloat(document.getElementById('orderShippingAmount')?.value || '0') || 0);
+  const discountAmount = Math.max(0, parseFloat(document.getElementById('orderDiscountAmount')?.value || '0') || 0);
+  const cleanLineItems = orderLineItems
+    .map(it => ({
+      sku: String(it.sku || '').trim(),
+      name: String(it.name || '').trim(),
+      quantity: Math.max(1, parseInt(it.quantity, 10) || 1),
+      unitPrice: parseFloat(it.unitPrice || 0)
+    }))
+    .filter(it => it.name && it.unitPrice > 0);
+  const payload = {
+    customerName: (document.getElementById('custName')?.value || '').trim(),
+    customerPhone: phone,
+    sku: (document.getElementById('itemSku')?.value || '').trim(),
+    itemDescription: (document.getElementById('itemDesc')?.value || '').trim(),
+    amount: document.getElementById('orderValue')?.value,
+    ...(cleanLineItems.length ? { items: cleanLineItems, shippingAmount, discountAmount } : {}),
+    internalNotes: (document.getElementById('internalNotes')?.value || '').trim(),
+    customerInstructions: (document.getElementById('customerInstructions')?.value || '').trim(),
+    saveToCatalog: currentStockAccess && Boolean(document.getElementById('chkSaveToCatalog')?.checked)
+  };
+  const key = window.PaySapExperience?.requestKey(payload);
   isCreatingOrder = true;
-
   const submitBtn = document.getElementById('btnSubmitGenerate');
-  const origBtnContent = submitBtn ? submitBtn.innerHTML : '';
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = `<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span><span>Creating &amp; Opening WhatsApp...</span>`;
-  }
-
-  const custName = (document.getElementById('custName')?.value || '').trim();
-  const custPhone = (document.getElementById('custPhone')?.value || '').trim();
-  const itemSku = (document.getElementById('itemSku')?.value || '').trim();
-  const itemDesc = (document.getElementById('itemDesc')?.value || '').trim();
-  const orderAmount = document.getElementById('orderValue')?.value;
-  const notes = (document.getElementById('internalNotes')?.value || '').trim();
-  const saveToCatalog = document.getElementById('chkSaveToCatalog')?.checked || false;
-
-  // Pre-open a blank window synchronously during user gesture to prevent popup blockers
-  let waWindow = null;
-  try {
-    waWindow = window.open('about:blank', '_blank');
-  } catch (e) {
-    waWindow = null;
-  }
-
+  const original = submitBtn?.innerHTML;
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating your link…'; }
   try {
     const res = await fetch('/api/orders', {
-      method: 'POST',
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        customerName: custName,
-        customerPhone: custPhone,
-        sku: itemSku,
-        itemDescription: itemDesc,
-        amount: orderAmount,
-        notes: notes,
-        saveToCatalog: saveToCatalog
-      })
+      method: 'POST', headers: getAuthHeaders({'Content-Type': 'application/json', ...(key ? {'Idempotency-Key': key} : {})}), body: JSON.stringify(payload)
     });
-
     const data = await res.json();
-    if (!res.ok || !data.success) {
-      if (waWindow && !waWindow.closed) waWindow.close();
-      showToast('⚠️ ' + (data.error || 'Failed to create order link'));
-      return;
-    }
-
+    if (!res.ok || !data.success) { window.PaySapExperience?.showError(data.error || 'Couldn’t create the order. Your draft is still here.'); return; }
     activeRefNumber = data.order.ref;
-    activeOrder = data.order;
-    
-    // Refresh background metrics and product stock in catalog
-    await fetchOrdersAndMetrics();
-    await fetchProductCatalog();
-
-    // Update live pitch preview with generated REF and exact amount
+    activeOrder = {...data.order, waLink: data.waLink};
+    window.PaySapExperience?.createdView(data);
     syncLivePitch();
-
-    // Populate the post-generation rail actions
-    const preNotice = document.getElementById('preGenerateNotice');
-    const postActions = document.getElementById('postGenerateActions');
-    const postGenOrderRefTitle = document.getElementById('postGenOrderRefTitle');
-    const postGenAmountTitle = document.getElementById('postGenAmountTitle');
-
-    if (preNotice) preNotice.classList.add('hidden');
-    if (postActions) postActions.classList.remove('hidden');
-
-    if (postGenOrderRefTitle) postGenOrderRefTitle.textContent = `Order Link #REF-${data.order.ref} Ready!`;
-    if (postGenAmountTitle) postGenAmountTitle.textContent = `₹${data.order.payableAmount.toLocaleString('en-IN')}`;
-
-    // Direct pre-opened window to WhatsApp, or handle popup blocker gracefully
-    let openedAutomatically = false;
-    if (data.waLink && waWindow && !waWindow.closed) {
-      try {
-        waWindow.location.href = data.waLink;
-        openedAutomatically = true;
-      } catch (e) {
-        openedAutomatically = false;
-      }
-    }
-
-    if (openedAutomatically) {
-      showToast(`✅ Order #REF-${activeRefNumber} Ready! WhatsApp opened in new tab.`);
-    } else {
-      if (waWindow && !waWindow.closed) waWindow.close();
-      showToast(`✅ Order #REF-${activeRefNumber} Ready! Tap Re-open chat if popup was blocked.`);
-    }
-
-    // Instantly switch straight to Live Cockpit for this order so the seller tracks the customer journey in real-time!
-    activateTab(data.order.ref);
-
+    await fetchOrdersAndMetrics(true);
+    showToast(`Order ${data.order.ref} created. It’s ready to share.`);
+    document.getElementById('postGenerateActions')?.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest'});
   } catch (err) {
-    if (waWindow && !waWindow.closed) waWindow.close();
-    console.error(err);
-    showToast('⚠️ Error connecting to server');
+    window.PaySapExperience?.showError('Couldn’t confirm that the link was created. Retry safely using the same draft; a retry won’t create a duplicate.');
   } finally {
     isCreatingOrder = false;
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = origBtnContent;
-    }
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = original; }
   }
 }
 
 let lastOrdersDataSnapshot = '';
+let lastSummarySnapshot = '';
 let knownPaidOrderRefs = null;
 
-// Polling radar: fetch latest orders and update KPIs, active tab cockpit, and table
-async function fetchOrdersAndMetrics() {
+// Polling radar: check lightweight summary first; fetch paginated full orders only when changed or forced
+async function fetchOrdersAndMetrics(forceFull = false) {
+  if (ordersFetchInFlight || !navigator.onLine) return;
+  ordersFetchInFlight = true;
   try {
-    const res = await fetch('/api/orders', {
+    if (!forceFull && lastSummarySnapshot) {
+      const summaryRes = await fetch('/api/orders/summary', { headers: getAuthHeaders() });
+      if (summaryRes.status === 401) { window.location.href = '/auth'; return; }
+      if (summaryRes.ok) {
+        const summaryData = await summaryRes.json();
+        const nextSummarySnap = JSON.stringify(summaryData);
+        if (nextSummarySnap === lastSummarySnapshot) {
+          window.PaySapExperience?.setSync('online');
+          return;
+        }
+        lastSummarySnapshot = nextSummarySnap;
+      }
+    }
+
+    const res = await fetch('/api/orders?page=1&limit=200', {
       headers: getAuthHeaders()
     });
     if (res.status === 401) {
       window.location.href = '/auth';
       return;
     }
-    if (!res.ok) return;
+    if (!res.ok) { window.PaySapExperience?.setSync('error'); return; }
 
     const data = await res.json();
-    cachedOrders = data.orders || [];
+    if (data.role && data.role !== currentRole) { window.location.replace('/'); return; }
+    window.PaySapExperience?.setSync('online');
+    let mergedOrders = data.orders || [];
+    const totalPages = data.pagination?.totalPages || 1;
+    if (totalPages > 1) {
+      for (let p = 2; p <= Math.min(totalPages, 10); p++) {
+        const pageRes = await fetch(`/api/orders?page=${p}&limit=200`, { headers: getAuthHeaders() });
+        if (!pageRes.ok) break;
+        const pageData = await pageRes.json();
+        if (Array.isArray(pageData.orders)) mergedOrders = mergedOrders.concat(pageData.orders);
+      }
+    }
+    cachedOrders = mergedOrders;
     const m = data.metrics || {};
+
+    // Refresh lightweight summary baseline so next background tick can short-circuit cleanly
+    if (forceFull || !lastSummarySnapshot) {
+      try {
+        const sumRes = await fetch('/api/orders/summary', { headers: getAuthHeaders() });
+        if (sumRes.ok) lastSummarySnapshot = JSON.stringify(await sumRes.json());
+      } catch (_) {}
+    }
 
     // Seed or detect newly settled/paid orders in real-time
     if (knownPaidOrderRefs === null) {
@@ -1538,12 +1630,11 @@ async function fetchOrdersAndMetrics() {
         const latestPaid = newlyPaid[0];
         const payable = (latestPaid.payableAmount !== undefined ? latestPaid.payableAmount : latestPaid.amount).toFixed(2);
 
-        playSellerCelebrationChime();
-        triggerSellerConfetti();
-        showToast(`🎉 Payment Confirmed! Order #${latestPaid.ref} received ₹${payable} via Bank UPI!`);
+        // Keep incoming payments from interrupting another customer’s order.
+        showToast(`Payment received for ${latestPaid.ref}: ₹${payable}`);
 
         // Automatically switch and render cockpit if on this order or on 'NEW'
-        if (activeTab === String(latestPaid.ref) || activeTab === 'NEW' || activeTab === latestPaid.token) {
+        if (activeTab === String(latestPaid.ref) || activeTab === latestPaid.token) {
           activateTab(latestPaid.ref);
         }
       }
@@ -1583,6 +1674,7 @@ async function fetchOrdersAndMetrics() {
     if (data.allSalesmen) cachedAllSalesmen = data.allSalesmen || [];
     if (data.storeFunnel) cachedStoreFunnel = data.storeFunnel;
     if (data.abandonedLeads) cachedAbandonedLeads = data.abandonedLeads || [];
+    if (Array.isArray(data.paymentReviewCredits)) window.PaySapExperience?.renderReceipts(data.paymentReviewCredits);
 
     // Change Detection: Eliminate DOM thrashing if server state hasn't changed
     const currentSnapshot = JSON.stringify({
@@ -1596,7 +1688,8 @@ async function fetchOrdersAndMetrics() {
     });
 
     const hasChanged = currentSnapshot !== lastOrdersDataSnapshot;
-    if (hasChanged) {
+    window.PaySapExperience?.renderOperations();
+    if (hasChanged || pendingMasterRefresh) {
       lastOrdersDataSnapshot = currentSnapshot;
 
       // Render Tabs Rail
@@ -1627,13 +1720,14 @@ async function fetchOrdersAndMetrics() {
 
       // If currently on Master Dashboard view, refresh active sub-tab
       if (currentMainView === 'MASTER') {
-        renderActiveMasterView();
+        if (window.PaySapExperience?.isEditing()) pendingMasterRefresh = true;
+        else { renderActiveMasterView(); pendingMasterRefresh = false; }
       }
     }
 
   } catch (err) {
-    console.error('Failed to fetch orders:', err);
-  }
+    window.PaySapExperience?.setSync('error');
+  } finally { ordersFetchInFlight = false; }
 }
 
 // Seller Celebration Sound Chime via Web Audio API
@@ -1810,7 +1904,7 @@ function syncNavTabsVisibility() {
     mTabDispatch.classList.remove('hidden');
     mTabDispatch.style.display = '';
     if (navOrdersLabel) {
-      navOrdersLabel.textContent = isSalesman ? 'My Orders' : 'Orders & Dispatch';
+      navOrdersLabel.textContent = isSalesman ? 'My orders' : 'Orders';
     }
   }
 
@@ -1858,7 +1952,7 @@ function syncNavTabsVisibility() {
   if (mNavDispatch) {
     const mobileOrdersText = mNavDispatch.querySelector('span:last-child');
     if (mobileOrdersText) {
-      mobileOrdersText.textContent = isSalesman ? 'My Orders' : 'Dispatch';
+      mobileOrdersText.textContent = isSalesman ? 'My orders' : 'Orders';
     }
   }
 }
@@ -1873,7 +1967,7 @@ function setMasterTab(tabName) {
       return;
     }
     if (tabName === 'inventory' && !currentStockAccess) {
-      showToast('⚠️ Access denied. Stock CRM access has not been granted by Store Owner.');
+      showToast('⚠️ Access denied. Inventory access has not been granted by Store Owner.');
       switchMainView('STUDIO');
       syncNavTabsVisibility();
       return;
@@ -1933,6 +2027,7 @@ function setMasterTab(tabName) {
   }
 
   renderActiveMasterView();
+  window.PaySapExperience?.navigation();
 }
 
 function renderActiveMasterView() {
@@ -1951,6 +2046,7 @@ function renderActiveMasterView() {
 // 1. Render Master Overview & Salesmen Performance Table
 function renderMasterDashboard() {
   if (currentRole !== 'OWNER') return;
+  window.PaySapExperience?.renderOperations();
 
   const masterStoreTitle = document.getElementById('masterStoreTitle');
   const masterRevenue = document.getElementById('masterRevenue');
@@ -1961,7 +2057,7 @@ function renderMasterDashboard() {
   const masterSalesmenTbody = document.getElementById('masterSalesmenTbody');
 
   if (masterStoreTitle && currentSeller) {
-    masterStoreTitle.textContent = `${currentSeller.brandName} • Master Dashboard`;
+    masterStoreTitle.textContent = currentSeller.brandName;
   }
 
   // Calculate master aggregates across cachedSalesmenBreakdown or storeFunnel
@@ -2035,17 +2131,17 @@ function renderMasterDashboard() {
     if (cachedAbandonedLeads.length === 0) {
       abandonedLeadsContainer.innerHTML = `
         <div class="col-span-full py-6 text-center text-slate-500 bg-white/70 rounded-2xl border border-amber-200/50">
-          <span class="text-xs font-semibold">🎉 No abandoned customer drop-offs right now! Every customer who entered an address has completed payment.</span>
+          <span class="text-xs font-semibold">🎉 No customers are awaiting follow-up right now.</span>
         </div>
       `;
     } else {
       abandonedLeadsContainer.innerHTML = cachedAbandonedLeads.map(lead => {
         const payableAmt = (lead.payableAmount !== undefined ? lead.payableAmount : lead.amount).toFixed(2);
         const origin = window.location.origin;
-        const payUrl = `${origin}/pay?ref=${lead.ref}`;
+        const payUrl = `${origin}/pay?token=${encodeURIComponent(lead.token)}`;
         const phone = lead.customerPhone || '';
         const addrCity = lead.address ? `${lead.address.city || ''}, ${lead.address.state || ''} (${lead.address.pincode || ''})` : 'Delivery address entered';
-        const msg = encodeURIComponent(`Hi ${lead.customerName || 'there'}, your reservation for "${lead.itemDescription}" (₹${payableAmt}) is reserved at ${currentSeller ? currentSeller.brandName : 'our store'}. Complete your delivery confirmation here: ${payUrl}`);
+        const msg = encodeURIComponent(`Hi ${lead.customerName || 'there'}, your order for "${lead.itemDescription}" (₹${payableAmt}) is ready at ${currentSeller ? currentSeller.brandName : 'our store'}. Complete your delivery confirmation here: ${payUrl}`);
         const waUrl = phone ? `https://wa.me/91${phone}?text=${msg}` : '#';
 
         return `
@@ -2069,7 +2165,7 @@ function renderMasterDashboard() {
                 <span class="material-symbols-outlined text-[14px]">chat</span>
                 <span>Recover via WhatsApp</span>
               </a>
-              <button type="button" onclick="activateTab('${lead.ref}')" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors cursor-pointer text-[11px] font-bold" title="Open in Cockpit">
+              <button type="button" data-click="activateTab" data-arg="${escapeHtml(lead.ref)}" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors cursor-pointer text-[11px] font-bold" title="Open in Cockpit">
                 <span class="material-symbols-outlined text-[15px]">open_in_new</span>
               </button>
             </div>
@@ -2114,9 +2210,7 @@ function renderMasterDashboard() {
             <!-- 2: PIN -->
             <td class="py-3 px-3.5 font-mono font-bold text-slate-800">
               <span id="pinDisplay_${sm.id}" class="tracking-widest">${pinHidden}</span>
-              <button type="button" onclick="togglePinReveal('${sm.id}', '${sm.pin}')" class="ml-2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer text-[12px]" title="Show/Hide PIN">
-                <span class="material-symbols-outlined text-[15px] align-middle" id="pinIcon_${sm.id}">visibility</span>
-              </button>
+              <span class="text-xs text-slate-500">Reset in Edit</span>
             </td>
             <!-- 3: Sent -->
             <td class="py-3 px-3.5 font-semibold text-slate-700 font-mono">
@@ -2144,9 +2238,9 @@ function renderMasterDashboard() {
                 ${convRate}%
               </span>
             </td>
-            <!-- 9: Stock CRM Access -->
+            <!-- 9: Inventory Access -->
             <td class="py-3 px-3.5">
-              <button type="button" onclick="handleToggleStaffStockAccess('${sm.id}', ${!hasAccess})" class="px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors cursor-pointer inline-flex items-center gap-1.5 ${hasAccess ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'}" title="Toggle Stock CRM editing permission">
+              <button type="button" data-click="handleToggleStaffStockAccess" data-id="${escapeHtml(sm.id)}" data-access="${!hasAccess}" class="px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors cursor-pointer inline-flex items-center gap-1.5 ${hasAccess ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'}" title="Toggle Inventory editing permission">
                 <span class="w-1.5 h-1.5 rounded-full ${hasAccess ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
                 <span>${hasAccess ? 'Stock Access' : 'Enforced'}</span>
               </button>
@@ -2154,10 +2248,10 @@ function renderMasterDashboard() {
             <!-- 10: Actions -->
             <td class="py-3 px-3.5 text-right">
               <div class="flex items-center justify-end gap-1.5">
-                <button type="button" onclick="openEditSalesmanModal('${sm.id}', '${escapeHtml(sm.name)}', '${sm.pin}', ${hasAccess})" class="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-[11px] font-bold transition-colors cursor-pointer">
+                <button type="button" data-click="openEditSalesmanModal" data-id="${escapeHtml(sm.id)}" data-name="${escapeHtml(sm.name)}" data-access="${hasAccess}" class="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-[11px] font-bold transition-colors cursor-pointer">
                   Edit PIN
                 </button>
-                <button type="button" onclick="handleDeleteSalesman('${sm.id}', '${escapeHtml(sm.name)}')" class="p-1 hover:bg-rose-50 text-slate-300 hover:text-rose-600 rounded-lg transition-colors cursor-pointer" title="Remove Salesman">
+                <button type="button" data-click="handleDeleteSalesman" data-id="${escapeHtml(sm.id)}" data-name="${escapeHtml(sm.name)}" class="p-1 hover:bg-rose-50 text-slate-300 hover:text-rose-600 rounded-lg transition-colors cursor-pointer" title="Remove Salesman">
                   <span class="material-symbols-outlined text-[16px]">delete</span>
                 </button>
               </div>
@@ -2214,15 +2308,15 @@ function renderMasterDashboard() {
 
               <!-- Controls -->
               <div class="flex items-center justify-between pt-0.5">
-                <button type="button" onclick="handleToggleStaffStockAccess('${sm.id}', ${!hasAccess})" class="px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors cursor-pointer inline-flex items-center gap-1.5 ${hasAccess ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}">
+                <button type="button" data-click="handleToggleStaffStockAccess" data-id="${escapeHtml(sm.id)}" data-access="${!hasAccess}" class="px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors cursor-pointer inline-flex items-center gap-1.5 ${hasAccess ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}">
                   <span class="w-1.5 h-1.5 rounded-full ${hasAccess ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
                   <span>${hasAccess ? 'Stock Access: ON' : 'Stock Access: OFF'}</span>
                 </button>
                 <div class="flex items-center gap-1.5">
-                  <button type="button" onclick="openEditSalesmanModal('${sm.id}', '${escapeHtml(sm.name)}', '${sm.pin}', ${hasAccess})" class="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold transition-colors">
+                  <button type="button" data-click="openEditSalesmanModal" data-id="${escapeHtml(sm.id)}" data-name="${escapeHtml(sm.name)}" data-access="${hasAccess}" class="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold transition-colors">
                     Edit PIN
                   </button>
-                  <button type="button" onclick="handleDeleteSalesman('${sm.id}', '${escapeHtml(sm.name)}')" class="p-1 hover:bg-rose-50 text-slate-300 hover:text-rose-600 rounded-lg transition-colors">
+                  <button type="button" data-click="handleDeleteSalesman" data-id="${escapeHtml(sm.id)}" data-name="${escapeHtml(sm.name)}" class="p-1 hover:bg-rose-50 text-slate-300 hover:text-rose-600 rounded-lg transition-colors">
                     <span class="material-symbols-outlined text-[16px]">delete</span>
                   </button>
                 </div>
@@ -2260,19 +2354,25 @@ window.manualMarkPaid = async function(ref) {
     showToast('⚠️ Access denied: Only Store Owners can confirm payments.');
     return;
   }
-  if (!confirm(`Confirm and mark Order #REF-${ref} as PAID manually?\nThis verifies customer settlement, protects stock, and marks order ready for express dispatch.`)) return;
+  const target = (cachedOrders && cachedOrders.find(order => String(order.ref) === String(ref) || order.token === ref))
+    || (activeOrder && (String(activeOrder.ref) === String(ref) || activeOrder.token === ref) ? activeOrder : null);
+  if (!target) {
+    showToast('⚠️ Order not found to confirm.');
+    return;
+  }
+  const review = await window.PaySapExperience?.confirmPayment(target);
+  if (!review) return;
   try {
     showToast(`⏳ Confirming payment for #REF-${ref}...`);
     const res = await fetch(`/api/orders/${ref}/mark-paid`, {
       method: 'POST',
       headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ paymentMethod: 'Manual Owner Verification / Direct UPI' })
+      body: JSON.stringify(review)
     });
     const data = await res.json();
     if (res.ok && data.success) {
       showToast(`✅ Order #REF-${ref} confirmed & marked PAID!`);
-      playCashChime();
-      await fetchOrdersAndMetrics();
+      await fetchOrdersAndMetrics(true);
       if (data.order) {
         if (activeOrder && (activeOrder.ref === ref || activeOrder.token === ref)) {
           activeOrder = data.order;
@@ -2289,432 +2389,64 @@ window.manualMarkPaid = async function(ref) {
   }
 };
 
-function renderMasterDispatchTable() {
-  const dispSalesmanFilter = document.getElementById('dispSalesmanFilter');
-  const dispSalesmanFilterWrapper = document.getElementById('dispSalesmanFilterWrapper');
-  const masterDispatchTbody = document.getElementById('masterDispatchTbody');
-  const ordersBoardHeading = document.getElementById('ordersBoardHeading');
-
-  // Role Scoping for UI Headers
-  if (currentRole === 'SALESMAN') {
-    if (ordersBoardHeading) ordersBoardHeading.textContent = 'My Orders & Dispatch Board';
-    if (dispSalesmanFilterWrapper) dispSalesmanFilterWrapper.classList.add('hidden');
-  } else {
-    if (ordersBoardHeading) ordersBoardHeading.textContent = 'Orders & Dispatch Board';
-    if (dispSalesmanFilterWrapper) dispSalesmanFilterWrapper.classList.remove('hidden');
-  }
-
-  // Top Metrics Aggregation
-  const pendingCount = cachedOrders.filter(o => o.status !== 'PAID').length;
-  const packedCount = cachedOrders.filter(o => o.status === 'PAID' && (o.dispatchStatus === 'PACKING' || o.dispatchStatus === 'PACKED')).length;
-  const shippedCount = cachedOrders.filter(o => o.status === 'PAID' && o.dispatchStatus === 'DISPATCHED').length;
-  const deliveredCount = cachedOrders.filter(o => o.status === 'PAID' && o.dispatchStatus === 'DELIVERED').length;
-
-  const elPending = document.getElementById('dispMetricPending');
-  const elPacked = document.getElementById('dispMetricPacked');
-  const elShipped = document.getElementById('dispMetricShipped');
-  const elDelivered = document.getElementById('dispMetricDelivered');
-
-  if (elPending) elPending.textContent = `${pendingCount} Orders`;
-  if (elPacked) elPacked.textContent = `${packedCount} Orders`;
-  if (elShipped) elShipped.textContent = `${shippedCount} Orders`;
-  if (elDelivered) elDelivered.textContent = `${deliveredCount} Orders`;
-
-  // Populate Salesman Filter Dropdown (Owner Only)
-  if (dispSalesmanFilter && currentRole === 'OWNER') {
-    const currentVal = dispSalesmanFilter.value;
-    dispSalesmanFilter.innerHTML = `
-      <option value="ALL">All Staff</option>
-      ${cachedSalesmenBreakdown.map(sm => `
-        <option value="${sm.id}">${escapeHtml(sm.name)}</option>
-      `).join('')}
-    `;
-    if (currentVal && cachedSalesmenBreakdown.some(sm => sm.id === currentVal)) {
-      dispSalesmanFilter.value = currentVal;
-    }
-  }
-
-  if (!masterDispatchTbody) return;
-
-  let list = [...cachedOrders];
-
-  // Apply Salesman Filter (Owner only)
-  if (currentRole === 'OWNER' && dispFilterSalesman !== 'ALL') {
-    list = list.filter(o => o.salesmanId === dispFilterSalesman);
-  }
-
-  // Apply Status Filter
-  if (dispFilterStatus !== 'ALL') {
-    if (dispFilterStatus === 'PENDING') {
-      list = list.filter(o => o.status !== 'PAID');
-    } else if (dispFilterStatus === 'PAID') {
-      list = list.filter(o => o.status === 'PAID');
-    } else if (dispFilterStatus === 'PACKING') {
-      list = list.filter(o => o.status === 'PAID' && (o.dispatchStatus === 'PACKING' || o.dispatchStatus === 'PACKED'));
-    } else if (dispFilterStatus === 'DISPATCHED') {
-      list = list.filter(o => o.status === 'PAID' && o.dispatchStatus === 'DISPATCHED');
-    } else if (dispFilterStatus === 'DELIVERED') {
-      list = list.filter(o => o.status === 'PAID' && o.dispatchStatus === 'DELIVERED');
-    }
-  }
-
-  // Apply Live Instant Search
-  const searchInput = document.getElementById('orderSearchInput');
-  const query = (searchInput?.value || window.orderSearchQuery || '').trim().toLowerCase();
-  if (query) {
-    list = list.filter(o => {
-      const refMatch = String(o.ref || '').toLowerCase().includes(query);
-      const nameMatch = String(o.customerName || '').toLowerCase().includes(query);
-      const phoneMatch = String(o.customerPhone || '').toLowerCase().includes(query);
-      const descMatch = String(o.itemDescription || '').toLowerCase().includes(query);
-      const skuMatch = String(o.sku || '').toLowerCase().includes(query);
-      const trkMatch = String(o.trackingNumber || '').toLowerCase().includes(query);
-      const utrMatch = String(o.utr || '').toLowerCase().includes(query);
-      const smMatch = String(o.salesmanName || '').toLowerCase().includes(query);
-      return refMatch || nameMatch || phoneMatch || descMatch || skuMatch || trkMatch || utrMatch || smMatch;
-    });
-  }
-
-  const masterDispatchMobileList = document.getElementById('masterDispatchMobileList');
-
-  if (list.length === 0) {
-    const emptyHtml = `
-      <div class="flex flex-col items-center justify-center gap-1.5 py-12 text-center text-slate-400">
-        <span class="material-symbols-outlined text-[32px] text-slate-300">receipt_long</span>
-        <span class="font-semibold text-xs text-slate-500">No orders match the current filter or search criteria.</span>
-        <span class="text-[11px] text-slate-400">Orders created via New Sale will appear here instantly in real-time.</span>
-      </div>
-    `;
-    if (masterDispatchTbody) masterDispatchTbody.innerHTML = `<tr><td colspan="9" class="p-0">${emptyHtml}</td></tr>`;
-    if (masterDispatchMobileList) masterDispatchMobileList.innerHTML = emptyHtml;
+window.recordOrderRefund = async function(ref) {
+  const target = cachedOrders.find(o => o.ref === ref || o.token === ref) || (activeOrder?.ref === ref ? activeOrder : null);
+  if (!target) {
+    showToast('⚠️ Order not found for refund.');
     return;
   }
-
-  // 1. Desktop Authoritative Table Rows (9 Columns)
-  if (masterDispatchTbody) {
-    masterDispatchTbody.innerHTML = list.map(order => {
-      const isPaid = order.status === 'PAID';
-      const payableAmt = (order.payableAmount !== undefined ? order.payableAmount : order.amount).toFixed(2);
-      const dispStatus = order.dispatchStatus || 'PENDING';
-
-      // Format Doorstep Address
-      let addressHtml = '';
-      if (order.address) {
-        const a = order.address;
-        addressHtml = `
-          <div class="flex flex-col text-[11px] leading-tight max-w-[260px]">
-            <span class="font-bold text-slate-900 truncate">${escapeHtml(a.fullName || order.customerName)}</span>
-            <span class="text-slate-600 mt-0.5 truncate">${escapeHtml(a.flat)}, ${escapeHtml(a.street || '')}</span>
-            <span class="text-slate-500 font-semibold truncate">${escapeHtml(a.city)}, ${escapeHtml(a.state)} - <strong class="text-slate-900 font-mono">${escapeHtml(a.pincode)}</strong></span>
-          </div>
-        `;
-      } else {
-        addressHtml = `<span class="text-slate-400 italic text-[11px]">Awaiting entry on checkout</span>`;
-      }
-
-      // Journey & Payment Badge
-      let journeyHtml = '';
-      if (isPaid) {
-        journeyHtml = `
-          <div class="flex flex-col gap-0.5">
-            <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold inline-flex items-center gap-1 w-max">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> PAID
-            </span>
-            <span class="font-mono text-[10px] text-slate-500 font-bold truncate max-w-[130px]" title="${order.utr || 'Bank Verified'}">
-              UTR: ${escapeHtml(order.utr || 'Auto')}
-            </span>
-          </div>
-        `;
-      } else {
-        const isPayStarted = order.steps && order.steps.redirectedToPayment && order.steps.redirectedToPayment.done;
-        const hasAddr = order.address || (order.steps && order.steps.addressEntered && order.steps.addressEntered.done);
-        const isOpened = order.steps && order.steps.opened && order.steps.opened.done;
-
-        if (isPayStarted) {
-          journeyHtml = `
-            <span class="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold inline-flex items-center gap-1 w-max">
-              <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span> In Payment App
-            </span>
-          `;
-        } else if (hasAddr) {
-          journeyHtml = `
-            <span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold inline-flex items-center gap-1 w-max">
-              <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> Address Added
-            </span>
-          `;
-        } else if (isOpened) {
-          journeyHtml = `
-            <span class="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold inline-flex items-center gap-1 w-max">
-              <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Link Opened
-            </span>
-          `;
-        } else {
-          journeyHtml = `
-            <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold inline-flex items-center gap-1 w-max">
-              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Link Sent
-            </span>
-          `;
-        }
-      }
-
-      // Fulfillment Status Control
-      let fulfillmentHtml = '';
-      if (isPaid) {
-        fulfillmentHtml = `
-          <select onchange="updateDispatchStatus('${order.ref}', this.value)" class="text-xs font-bold rounded-xl px-2.5 py-1.5 border outline-none cursor-pointer ${
-            dispStatus === 'DELIVERED' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' :
-            dispStatus === 'DISPATCHED' ? 'bg-blue-50 text-blue-800 border-blue-300' :
-            dispStatus === 'PACKING' || dispStatus === 'PACKED' ? 'bg-indigo-50 text-indigo-800 border-indigo-300' :
-            'bg-amber-50 text-amber-800 border-amber-300'
-          }">
-            <option value="PENDING" ${dispStatus === 'PENDING' ? 'selected' : ''}>⏳ Pending</option>
-            <option value="PACKING" ${dispStatus === 'PACKING' || dispStatus === 'PACKED' ? 'selected' : ''}>📦 Packing</option>
-            <option value="DISPATCHED" ${dispStatus === 'DISPATCHED' ? 'selected' : ''}>🚚 Dispatched</option>
-            <option value="DELIVERED" ${dispStatus === 'DELIVERED' ? 'selected' : ''}>✅ Delivered</option>
-          </select>
-        `;
-      } else {
-        fulfillmentHtml = `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold text-[10px]">Awaiting Payment</span>`;
-      }
-
-      // Tracking AWB Input
-      let trackingHtml = '';
-      if (isPaid) {
-        trackingHtml = `
-          <div class="flex items-center gap-1.5">
-            <input 
-              id="trk_${order.ref}" 
-              type="text" 
-              placeholder="e.g. AWB109283" 
-              value="${escapeHtml(order.trackingNumber || '')}" 
-              class="w-28 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono font-semibold outline-none focus:border-indigo-500" 
-            />
-            <button 
-              type="button" 
-              onclick="saveTrackingNumber('${order.ref}')" 
-              class="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold cursor-pointer" 
-              title="Save Tracking Number">
-              ✓
-            </button>
-          </div>
-        `;
-      } else {
-        trackingHtml = `<span class="text-slate-400 font-mono text-[10px]">—</span>`;
-      }
-
-      // WhatsApp Nudge link for pending orders
-      const origin = window.location.origin;
-      const payUrl = `${origin}/pay?token=${order.token || order.ref}`;
-      const nudgeMsg = encodeURIComponent(`Hi ${order.customerName || 'there'}, your reservation for "${order.itemDescription}" (₹${payableAmt}) is reserved. Complete your order here: ${payUrl}`);
-      const waNudgeUrl = order.customerPhone ? `https://wa.me/91${order.customerPhone}?text=${nudgeMsg}` : '#';
-
-      return `
-        <tr class="hover:bg-slate-50/80 transition-colors">
-          <!-- Ref # -->
-          <td class="py-3 px-3.5 font-mono font-bold text-indigo-600 whitespace-nowrap">
-            #REF-${order.ref}
-          </td>
-
-          <!-- Staff -->
-          <td class="py-3 px-3.5 whitespace-nowrap">
-            <span class="px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200/90 text-indigo-700 font-bold text-xs inline-flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
-              <span>${escapeHtml(order.salesmanName || 'Store Desk')}</span>
-            </span>
-          </td>
-
-          <!-- Customer & Contact -->
-          <td class="py-3 px-3.5 whitespace-nowrap">
-            <span class="font-bold text-slate-900 block">${escapeHtml(order.customerName)}</span>
-            ${order.customerPhone ? `
-              <a href="https://wa.me/91${order.customerPhone}" target="_blank" class="text-[11px] text-emerald-700 font-mono font-semibold flex items-center gap-1 hover:underline">
-                <span class="material-symbols-outlined text-[13px]">chat</span>
-                <span>+91 ${escapeHtml(order.customerPhone)}</span>
-              </a>
-            ` : '<span class="text-slate-400 font-mono text-[10px]">—</span>'}
-          </td>
-
-          <!-- Item & Amount -->
-          <td class="py-3 px-3.5 max-w-xs">
-            <div class="truncate text-slate-800 font-medium">
-              ${order.sku ? `<span class="font-mono text-indigo-600 font-bold text-[10px] mr-1">#${escapeHtml(order.sku)}</span>` : ''}
-              ${escapeHtml(order.itemDescription)}
-            </div>
-            <div class="font-mono font-extrabold text-slate-900 text-xs mt-0.5">
-              ₹${payableAmt}
-            </div>
-          </td>
-
-          <!-- Journey & Payment -->
-          <td class="py-3 px-3.5 whitespace-nowrap">
-            ${journeyHtml}
-          </td>
-
-          <!-- Doorstep Shipping Address -->
-          <td class="py-3 px-3.5">
-            ${addressHtml}
-          </td>
-
-          <!-- Fulfillment Status Dropdown -->
-          <td class="py-3 px-3.5 whitespace-nowrap">
-            ${fulfillmentHtml}
-          </td>
-
-          <!-- Tracking Number -->
-          <td class="py-3 px-3.5 whitespace-nowrap">
-            ${trackingHtml}
-          </td>
-
-          <!-- Actions -->
-          <td class="py-3 px-3.5 text-right whitespace-nowrap">
-            <div class="flex items-center justify-end gap-1.5">
-              <button type="button" onclick="activateTab('${order.ref}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold transition-colors cursor-pointer" title="Open 5-Step Radar">
-                Radar
-              </button>
-              ${currentRole === 'OWNER' && !isPaid ? `
-                <button type="button" onclick="manualMarkPaid('${order.ref}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors cursor-pointer" title="Manually verify & mark PAID">
-                  Mark Paid
-                </button>
-              ` : ''}
-              ${!isPaid && order.customerPhone ? `
-                <a href="${waNudgeUrl}" target="_blank" class="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors" title="Send WhatsApp Nudge">
-                  <span class="material-symbols-outlined text-[16px]">send</span>
-                </a>
-              ` : ''}
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
+  const refundPayload = await window.PaySapExperience?.recordRefund(target);
+  if (!refundPayload) return;
+  if (!(refundPayload.amount > 0)) {
+    showToast('⚠️ Enter a valid positive refund amount.');
+    return;
   }
-
-  // 2. Mobile Cards Feed (Touch-Optimized for Phones)
-  if (masterDispatchMobileList) {
-    masterDispatchMobileList.innerHTML = list.map(order => {
-      const isPaid = order.status === 'PAID';
-      const payableAmt = (order.payableAmount !== undefined ? order.payableAmount : order.amount).toFixed(2);
-      const dispStatus = order.dispatchStatus || 'PENDING';
-
-      const origin = window.location.origin;
-      const payUrl = `${origin}/pay?token=${order.token || order.ref}`;
-      const nudgeMsg = encodeURIComponent(`Hi ${order.customerName || 'there'}, your reservation for "${order.itemDescription}" (₹${payableAmt}) is reserved. Complete your order here: ${payUrl}`);
-      const waNudgeUrl = order.customerPhone ? `https://wa.me/91${order.customerPhone}?text=${nudgeMsg}` : '#';
-
-      const trkMsg = encodeURIComponent(`Hi ${order.customerName || 'there'}, your order #REF-${order.ref} for "${order.itemDescription}" has been dispatched via courier! Tracking AWB: ${order.trackingNumber || 'En route'}. Live tracking: ${payUrl}`);
-      const waTrkUrl = order.customerPhone ? `https://wa.me/91${order.customerPhone}?text=${trkMsg}` : '#';
-
-      return `
-        <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs flex flex-col gap-3">
-          <!-- Top row: Ref, Staff, Status -->
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <span class="font-mono font-extrabold text-xs text-indigo-600">#REF-${order.ref}</span>
-              <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold">${escapeHtml(order.salesmanName || 'Staff Desk')}</span>
-            </div>
-            ${isPaid ? `
-              <select onchange="updateDispatchStatus('${order.ref}', this.value)" class="text-xs font-bold rounded-xl px-2.5 py-1 border outline-none cursor-pointer ${
-                dispStatus === 'DELIVERED' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' :
-                dispStatus === 'DISPATCHED' ? 'bg-blue-50 text-blue-800 border-blue-300' :
-                dispStatus === 'PACKING' || dispStatus === 'PACKED' ? 'bg-indigo-50 text-indigo-800 border-indigo-300' :
-                'bg-amber-50 text-amber-800 border-amber-300'
-              }">
-                <option value="PENDING" ${dispStatus === 'PENDING' ? 'selected' : ''}>⏳ Pending</option>
-                <option value="PACKING" ${dispStatus === 'PACKING' || dispStatus === 'PACKED' ? 'selected' : ''}>📦 Packing</option>
-                <option value="DISPATCHED" ${dispStatus === 'DISPATCHED' ? 'selected' : ''}>🚚 Dispatched</option>
-                <option value="DELIVERED" ${dispStatus === 'DELIVERED' ? 'selected' : ''}>✅ Delivered</option>
-              </select>
-            ` : `
-              <span class="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200">
-                Awaiting Payment
-              </span>
-            `}
-          </div>
-
-          <!-- Item & Price -->
-          <div class="flex items-center justify-between py-1.5 border-y border-slate-100 text-xs">
-            <div class="min-w-0 pr-2">
-              <div class="font-extrabold text-slate-900 truncate">${escapeHtml(order.itemDescription)}</div>
-              <div class="text-[10px] text-slate-400 font-mono">${isPaid ? `UTR: ${escapeHtml(order.utr || 'Auto')}` : 'Step: Pending Payment'}</div>
-            </div>
-            <div class="font-mono font-extrabold text-slate-900 text-sm shrink-0">
-              ₹${payableAmt}
-            </div>
-          </div>
-
-          <!-- Customer & Doorstep Address -->
-          <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 text-xs flex flex-col gap-1">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-slate-900 truncate">${escapeHtml(order.customerName)}</span>
-              ${order.customerPhone ? `
-                <div class="flex items-center gap-1.5 shrink-0">
-                  <a href="tel:+91${order.customerPhone}" class="w-7 h-7 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition-colors active:scale-95" title="Call Customer">
-                    <span class="material-symbols-outlined text-[15px]">call</span>
-                  </a>
-                  <a href="https://wa.me/91${order.customerPhone}" target="_blank" class="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors active:scale-95" title="WhatsApp Chat">
-                    <span class="material-symbols-outlined text-[15px]">chat</span>
-                  </a>
-                </div>
-              ` : ''}
-            </div>
-            ${order.address ? `
-              <div class="text-[11px] text-slate-600 leading-tight mt-0.5">
-                ${escapeHtml(order.address.flat)}, ${escapeHtml(order.address.street || '')}, ${escapeHtml(order.address.city)}, ${escapeHtml(order.address.state)} - <strong class="font-mono text-slate-900">${escapeHtml(order.address.pincode)}</strong>
-              </div>
-            ` : `<span class="text-slate-400 italic text-[11px]">No doorstep address provided yet</span>`}
-          </div>
-
-          <!-- Actions & Tracking -->
-          <div class="flex items-center justify-between gap-1.5 pt-1 flex-wrap">
-            <div class="flex items-center gap-1.5">
-              <button type="button" onclick="activateTab('${order.ref}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-xl text-xs font-bold transition-all">
-                Radar
-              </button>
-              <button type="button" onclick="shareOrderLinkMobile('${order.ref}', '${payUrl}', '${escapeHtml(order.itemDescription).replace(/'/g, "\\'")}', '${payableAmt}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1 transition-all" title="Share via WhatsApp or Apps">
-                <span class="material-symbols-outlined text-[14px]">share</span>
-                <span>Share</span>
-              </button>
-            </div>
-
-            ${currentRole === 'OWNER' && !isPaid ? `
-              <button type="button" onclick="manualMarkPaid('${order.ref}')" class="px-3 py-1.5 bg-emerald-600 active:scale-95 text-white rounded-xl text-xs font-bold">
-                Mark Paid
-              </button>
-            ` : ''}
-
-            ${!isPaid && order.customerPhone ? `
-              <a href="${waNudgeUrl}" target="_blank" class="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 active:scale-95 rounded-xl text-xs font-bold no-underline flex items-center gap-1">
-                <span class="material-symbols-outlined text-[14px]">send</span>
-                <span>Nudge WA</span>
-              </a>
-            ` : ''}
-
-            ${isPaid ? `
-              <div class="flex items-center gap-1 flex-1 justify-end flex-wrap">
-                <input 
-                  id="mob_trk_${order.ref}" 
-                  type="text" 
-                  placeholder="AWB #" 
-                  value="${escapeHtml(order.trackingNumber || '')}" 
-                  class="w-20 bg-white border border-slate-200 rounded-xl px-2 py-1 text-xs outline-none focus:border-indigo-500 font-mono" 
-                />
-                <button 
-                  type="button" 
-                  onclick="saveTrackingNumberMobile('${order.ref}')" 
-                  class="px-2.5 py-1 bg-slate-900 active:scale-95 text-white rounded-xl text-xs font-bold cursor-pointer shrink-0">
-                  Save
-                </button>
-                ${order.customerPhone ? `
-                  <a href="${waTrkUrl}" target="_blank" class="px-2 py-1 bg-emerald-600 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center gap-1 no-underline" title="Send WhatsApp Tracking Update">
-                    <span class="material-symbols-outlined text-[14px]">local_shipping</span>
-                  </a>
-                ` : ''}
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      `;
-    }).join('');
+  try {
+    const res = await fetch(`/api/orders/${encodeURIComponent(ref)}/refund`, {
+      method: 'POST',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(refundPayload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      showToast(`⚠️ ${data.error || 'Failed to record refund'}`);
+      return;
+    }
+    showToast(`✅ Refund logged for #${ref}`);
+    await fetchOrdersAndMetrics(true);
+    if (data.order) {
+      if (activeOrder && (activeOrder.ref === ref || activeOrder.token === ref)) {
+        activeOrder = data.order;
+      }
+      renderCockpit(data.order);
+    }
+    renderMasterDispatchTable();
+  } catch (err) {
+    console.error(err);
+    showToast('⚠️ Network error recording refund');
   }
+};
+
+window.activateActiveOrder = function() {
+  if (activeRefNumber) activateTab(activeRefNumber);
+};
+
+function renderMasterDispatchTable() {
+  window.PaySapOrdersBoard?.render({
+    orders: cachedOrders,
+    role: currentRole,
+    staffId: currentSalesman?.id || null,
+    staff: cachedSalesmenBreakdown,
+    filters: { status: dispFilterStatus, staff: dispFilterSalesman, query: window.orderSearchQuery },
+    onFilter: filterDispatchStatus,
+    onStaff: handleDispatchSalesmanFilter,
+    onSearch: window.handleOrderSearch,
+    onOpen: activateTab,
+    onConfirm: window.manualMarkPaid,
+    onRefund: window.recordOrderRefund,
+    onDispatch: updateDispatchStatus,
+    onSaveTracking: saveTrackingNumber
+  });
 }
 
 window.saveTrackingNumberMobile = function(ref) {
@@ -2731,15 +2463,16 @@ async function updateDispatchStatus(ref, newStatus) {
     const res = await fetch(`/api/orders/${ref}/dispatch`, {
       method: 'POST',
       headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ status: newStatus })
+      body: JSON.stringify({ status: newStatus, trackingNumber: (document.getElementById(`mob_trk_${ref}`)?.value || document.getElementById(`trk_${ref}`)?.value || '').trim() || undefined })
     });
     const data = await res.json();
     if (res.ok && data.success) {
       showToast(`📦 Order #${ref} status updated to ${newStatus}`);
-      await fetchOrdersAndMetrics();
+      await fetchOrdersAndMetrics(true);
       renderMasterDispatchTable();
     } else {
-      showToast('⚠️ Failed to update status');
+      showToast(data.error || 'Couldn’t update the status.');
+      renderMasterDispatchTable();
     }
   } catch (err) {
     console.error(err);
@@ -2761,11 +2494,12 @@ async function saveTrackingNumber(ref) {
     });
     const data = await res.json();
     if (res.ok && data.success) {
-      showToast(`🚚 Tracking number saved for Order #${ref}!`);
-      await fetchOrdersAndMetrics();
+      window.PaySapExperience?.clearTracking(ref);
+      showToast(`Tracking number saved for ${ref}`);
+      await fetchOrdersAndMetrics(true);
       renderMasterDispatchTable();
     } else {
-      showToast('⚠️ Failed to save tracking number');
+      showToast(data.error || 'Couldn’t save the tracking number.');
     }
   } catch (err) {
     console.error(err);
@@ -2780,10 +2514,6 @@ function handleDispatchSalesmanFilter(val) {
 
 function filterDispatchStatus(status, btn) {
   dispFilterStatus = status;
-  document.querySelectorAll('.disp-filter-btn').forEach(b => {
-    b.className = 'disp-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer';
-  });
-  if (btn) btn.className = 'disp-filter-btn px-3 py-1 rounded-full text-xs font-bold bg-slate-900 text-white shadow-xs cursor-pointer';
   renderMasterDispatchTable();
 }
 
@@ -2822,7 +2552,7 @@ async function loadStoreSettings(showToastOnSuccess = false) {
 
   // Protect active user input from being overwritten while typing
   const activeEl = document.activeElement;
-  if (activeEl && (activeEl.id === 'setVerifiedSenderEmail' || activeEl.closest('#viewStoreSettings'))) {
+  if (activeEl?.matches('input, textarea, select') && activeEl.closest('#mViewSettings')) {
     return;
   }
 
@@ -2833,6 +2563,7 @@ async function loadStoreSettings(showToastOnSuccess = false) {
     if (!res.ok) return;
     const data = await res.json();
     const s = data.settings || {};
+    window.PaySapExperience?.updateThemeSettings(s);
 
     const setBrandName = document.getElementById('setBrandName');
     const setOwnerName = document.getElementById('setOwnerName');
@@ -2855,7 +2586,7 @@ async function loadStoreSettings(showToastOnSuccess = false) {
     if (setUpiId) setUpiId.value = s.upiId || '';
     if (setStoreLocation) setStoreLocation.value = s.storeLocation || '';
     if (setStoreInstagram) setStoreInstagram.value = s.storeInstagram || '';
-    if (setAssuranceText) setAssuranceText.value = s.assuranceText || 'Your item is handcrafted and reserved exclusively for you.';
+    if (setAssuranceText) setAssuranceText.value = s.assuranceText || 'Thank you for shopping with us. Contact the store if you need help.';
 
     if (s.storeLogo) {
       if (setLogoData) setLogoData.value = s.storeLogo;
@@ -2878,8 +2609,6 @@ async function loadStoreSettings(showToastOnSuccess = false) {
     const setVerifiedSenderEmail = document.getElementById('setVerifiedSenderEmail');
     const setBankImapUser = document.getElementById('setBankImapUser');
     const setBankImapPassword = document.getElementById('setBankImapPassword');
-    const setBankMonitoringActive = document.getElementById('setBankMonitoringActive');
-    const monitoringActiveLabel = document.getElementById('monitoringActiveLabel');
     const bankStatusDot = document.getElementById('bankStatusDot');
     const bankStatusText = document.getElementById('bankStatusText');
     const bankLastCheckedText = document.getElementById('bankLastCheckedText');
@@ -2906,33 +2635,20 @@ async function loadStoreSettings(showToastOnSuccess = false) {
       if (googleNotConnectedState) googleNotConnectedState.classList.add('hidden');
       if (googleConnectedState) googleConnectedState.classList.remove('hidden');
       if (googleConnectedEmail) googleConnectedEmail.textContent = ba.googleOAuth.connectedEmail || s.email || 'connected@gmail.com';
-      if (googleLastPollText) {
-        googleLastPollText.textContent = ba.lastCheckedAt 
-          ? `Last checked: ${new Date(ba.lastCheckedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} • Auto-polling official Gmail API`
-          : 'Auto-detecting bank alerts in real time via official Google Gmail API';
-      }
     } else {
       if (googleNotConnectedState) googleNotConnectedState.classList.remove('hidden');
       if (googleConnectedState) googleConnectedState.classList.add('hidden');
     }
 
-    if (bankStatusDot && bankStatusText) {
-      if (isGoogleConnected) {
-        bankStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0';
-        bankStatusText.textContent = `1-Click Gmail auto-detection active (${ba.bankName || ba.bankCode || 'ICICI'})`;
-        if (bankLastCheckedText) {
-          bankLastCheckedText.textContent = ba.lastCheckedAt 
-            ? `Last poll: ${new Date(ba.lastCheckedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` 
-            : 'Polling Gmail API every 20s';
-        }
-      } else {
-        bankStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0';
-        bankStatusText.textContent = 'Auto-detection on standby';
-        if (bankLastCheckedText) {
-          bankLastCheckedText.textContent = 'Click "Connect with Google" to activate seamless detection';
-        }
-      }
-    }
+    const monitoring = document.getElementById('setBankMonitoringActive');
+    const mode = document.getElementById('setBankConfirmationMode');
+    if (monitoring) monitoring.checked = ba.monitoringActive === true;
+    if (mode) mode.value = ba.confirmationMode || 'review';
+    const status = PaySapBankStatus.describe(ba);
+    if (bankStatusDot) bankStatusDot.className = 'w-2.5 h-2.5 rounded-full shrink-0 ' + (status.tone === 'good' ? 'bg-emerald-500' : status.tone === 'error' ? 'bg-rose-500' : 'bg-amber-500');
+    if (bankStatusText) bankStatusText.textContent = status.title;
+    if (bankLastCheckedText) bankLastCheckedText.textContent = status.detail;
+    if (googleLastPollText) googleLastPollText.textContent = status.detail;
 
     if (typeof onBankSelectChange === 'function') {
       onBankSelectChange(false);
@@ -2940,7 +2656,7 @@ async function loadStoreSettings(showToastOnSuccess = false) {
 
     // Check query params for Google OAuth redirect status
     if (window.location.search.includes('google_connected=success')) {
-      showToast('🎉 Gmail connected successfully! Bank credit emails will auto-settle.');
+      showToast('Gmail connected. Review email monitoring and confirmation settings.');
       history.replaceState(null, '', window.location.pathname + '?tab=settings');
     } else if (window.location.search.includes('google_error=')) {
       const err = new URLSearchParams(window.location.search).get('google_error');
@@ -2954,6 +2670,25 @@ async function loadStoreSettings(showToastOnSuccess = false) {
   } catch (err) {
     console.error(err);
   }
+}
+
+async function saveBankMonitoringSettings() {
+  const button = document.getElementById('saveBankMonitoring');
+  const status = document.getElementById('bankMonitoringSaveStatus');
+  button.disabled = true;
+  try {
+    const response = await fetch('/api/store/settings', {method: 'PUT', headers: getAuthHeaders({'Content-Type': 'application/json'}), body: JSON.stringify({bankingAutomation: {
+      monitoringActive: document.getElementById('setBankMonitoringActive').checked,
+      confirmationMode: document.getElementById('setBankConfirmationMode').value
+    }})});
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.error || 'Could not save monitoring settings.');
+    const view = PaySapBankStatus.describe(data.settings.bankingAutomation);
+    document.getElementById('bankStatusText').textContent = view.title;
+    document.getElementById('bankLastCheckedText').textContent = view.detail;
+    status.textContent = 'Email settings saved. ' + view.title;
+  } catch (error) { status.textContent = error.message || 'Could not save. Try again.'; }
+  finally { button.disabled = false; }
 }
 
 // Google OAuth 1-Click Connection Handlers
@@ -3259,7 +2994,7 @@ window.clearStoreLogo = function() {
   updateSettingsPreview();
 };
 
-// Product Photo Upload Handlers for Stock CRM
+// Product Photo Upload Handlers for Inventory
 window.handleProductImageSelect = async function(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
@@ -3368,7 +3103,7 @@ window.updateSettingsPreview = function() {
   if (prevInstaBadge) prevInstaBadge.style.opacity = instaVal ? '1' : '0.4';
 
   if (prevAssuranceText) {
-    prevAssuranceText.textContent = assuranceVal ? `✨ ${assuranceVal}` : '✨ Your item is handcrafted and reserved exclusively for you';
+    prevAssuranceText.textContent = assuranceVal ? `✨ ${assuranceVal}` : 'Thank you for shopping with us.';
   }
 };
 
@@ -3382,20 +3117,19 @@ async function handleSaveStoreSettings() {
   const storeInstagram = document.getElementById('setStoreInstagram')?.value.trim();
   const assuranceText = document.getElementById('setAssuranceText')?.value.trim();
   const storeLogo = document.getElementById('setLogoData')?.value.trim() || document.getElementById('setLogoUrl')?.value.trim() || '';
-  const newPassword = document.getElementById('setNewPassword')?.value.trim();
+  const newPassword = document.getElementById('setNewPassword')?.value || '';
+  const currentPassword = document.getElementById('setCurrentPassword')?.value || '';
 
   // Banking Automation Settings
   const bankCode = document.getElementById('setBankCode')?.value || 'ICICI';
   const verifiedSenderEmail = document.getElementById('setVerifiedSenderEmail')?.value.trim() || '';
   const imapUser = document.getElementById('setBankImapUser')?.value.trim() || '';
   const imapAppPassword = document.getElementById('setBankImapPassword')?.value.trim() || '';
-  const monitoringActive = Boolean(document.getElementById('setBankMonitoringActive')?.checked);
 
   const bankingAutomation = {
     bankCode,
     verifiedSenderEmail,
-    imapUser,
-    monitoringActive
+    imapUser
   };
   if (imapAppPassword) {
     bankingAutomation.imapAppPassword = imapAppPassword;
@@ -3425,7 +3159,9 @@ async function handleSaveStoreSettings() {
         storeInstagram,
         storeLogo,
         assuranceText,
+        themeId: document.getElementById('setThemeId')?.value || currentSeller.themeId || 'lavender',
         newPassword: newPassword || undefined,
+        currentPassword: newPassword ? currentPassword : undefined,
         bankingAutomation
       })
     });
@@ -3434,6 +3170,7 @@ async function handleSaveStoreSettings() {
       showToast('✅ Store profile, logo & banking rails updated!');
       if (newPassword) {
         document.getElementById('setNewPassword').value = '';
+        document.getElementById('setCurrentPassword').value = '';
       }
       if (imapAppPassword) {
         const passEl = document.getElementById('setBankImapPassword');
@@ -3485,7 +3222,7 @@ window.renderBankSenderChips = function(code) {
   if (!container) return;
   const chips = BANK_PRESET_CHIPS[code] || BANK_PRESET_CHIPS.CUSTOM;
   container.innerHTML = chips.map(chip => `
-    <button type="button" onclick="setVerifiedSenderChip('${chip}')" class="text-[9px] font-mono font-medium px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 border border-slate-200 transition-colors cursor-pointer flex items-center gap-1">
+    <button type="button" data-click="setVerifiedSenderChip" data-arg="${escapeHtml(chip)}" class="text-[9px] font-mono font-medium px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 border border-slate-200 transition-colors cursor-pointer flex items-center gap-1">
       <span class="material-symbols-outlined text-[10px]">add</span>
       <span>${chip}</span>
     </button>
@@ -3856,7 +3593,7 @@ window.shareQsLinkNative = async function() {
     try {
       await navigator.share({
         title: `${ref} - Payment Link`,
-        text: `Namaste! Here is your reserved order link for ${itemDesc}${amount ? ' (₹' + amount + ')' : ''}. Confirm address & pay:\n${lastQsUrl}`,
+        text: `Hello! Here is your order link for ${itemDesc}${amount ? ' (₹' + amount + ')' : ''}. Confirm address & pay:\n${lastQsUrl}`,
         url: lastQsUrl
       });
       return;
@@ -3890,7 +3627,7 @@ window.shareCurrentOrderMobile = async function() {
     return;
   }
   const origin = window.location.origin;
-  const payUrl = `${origin}/pay?ref=${activeOrder.ref}`;
+  const payUrl = `${origin}/pay?token=${encodeURIComponent(activeOrder.token)}`;
   const item = activeOrder.itemDescription || 'Reserved Piece';
   const amt = (activeOrder.payableAmount !== undefined ? activeOrder.payableAmount : activeOrder.amount) || '0';
   await window.shareOrderLinkMobile(activeOrder.ref, payUrl, item, amt);
@@ -3931,7 +3668,7 @@ async function handleAddSalesmanSubmit() {
   const name = document.getElementById('newSmName').value.trim();
   const pin = document.getElementById('newSmPin').value.trim();
   const stockAccess = Boolean(document.getElementById('newSmStockAccess')?.checked);
-  if (!name || pin.length < 4) {
+  if (!name || (pin && !/^\d{4}$/.test(pin))) {
     showToast('⚠️ Please enter salesman name and 4-digit PIN');
     return;
   }
@@ -3970,7 +3707,7 @@ function openEditSalesmanModal(id, name, currentPin, stockAccess = false) {
   if (modal) {
     document.getElementById('editSmId').value = id;
     document.getElementById('editSmName').value = name;
-    document.getElementById('editSmPin').value = currentPin;
+    document.getElementById('editSmPin').value = '';
     const chk = document.getElementById('editSmStockAccess');
     if (chk) chk.checked = Boolean(stockAccess);
     modal.classList.remove('hidden');
@@ -3988,8 +3725,8 @@ async function handleEditSalesmanSubmit() {
   const name = document.getElementById('editSmName').value.trim();
   const pin = document.getElementById('editSmPin').value.trim();
   const stockAccess = Boolean(document.getElementById('editSmStockAccess')?.checked);
-  if (!name || pin.length < 4) {
-    showToast('⚠️ Salesman name and 4-digit PIN are required');
+  if (!name || (pin && !/^\d{4}$/.test(pin))) {
+    showToast('Enter a staff name. A replacement PIN must have 4 digits.');
     return;
   }
 
@@ -4031,7 +3768,7 @@ async function handleToggleStaffStockAccess(id, newAccess) {
     });
     const data = await res.json();
     if (res.ok && data.success) {
-      showToast(`Stock CRM permission ${newAccess ? 'granted to' : 'revoked from'} ${data.salesman.name}`);
+      showToast(`Inventory permission ${newAccess ? 'granted to' : 'revoked from'} ${data.salesman.name}`);
       await fetchOrdersAndMetrics();
       renderMasterDashboard();
     } else {
@@ -4067,47 +3804,7 @@ async function handleDeleteSalesman(id, name) {
   }
 }
 
-// Simulate an incoming bank credit email for current sale
-async function triggerTestBankWebhook() {
-  if (!activeOrder && (!cachedOrders || cachedOrders.length === 0)) {
-    showToast('⚠️ Please create a sale first before simulating bank confirmation');
-    return;
-  }
 
-  const target = activeOrder || cachedOrders.find(o => o.status === 'PENDING') || cachedOrders[0];
-  if (!target) {
-    showToast('⚠️ No pending sale found to confirm');
-    return;
-  }
-
-  try {
-    showToast(`📩 Simulating incoming Bank Payment Alert for #REF-${target.ref}...`);
-    const res = await fetch('/api/webhook/simulate-bank-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ref: target.ref,
-        bankName: 'HDFC Bank'
-      })
-    });
-    const data = await res.json();
-    if (res.ok && data.success) {
-      showToast(`✅ Verified! Bank Settlement Reference: ${data.utr}`);
-      playCashChime();
-      await fetchOrdersAndMetrics();
-      if (data.order) {
-        activeOrder = data.order;
-        renderCockpit(data.order);
-      }
-      renderMasterDispatchTable();
-    } else {
-      showToast('⚠️ ' + (data.error || 'Failed to simulate payment'));
-    }
-  } catch (err) {
-    console.error(err);
-    showToast('⚠️ Failed to connect to bank simulation engine');
-  }
-}
 
 // Render Bottom All Orders Table
 function renderOrdersTable() {
@@ -4180,7 +3877,7 @@ function renderOrdersTable() {
         : '';
 
       return `
-        <tr class="hover:bg-slate-50/70 transition-colors cursor-pointer" onclick="activateTab('${order.ref}')">
+        <tr class="hover:bg-slate-50/70 transition-colors cursor-pointer" data-click="activateTab" data-arg="${escapeHtml(order.ref)}">
           <td class="py-3.5 px-4">
             <div class="flex items-center gap-2.5">
               <div class="w-7 h-7 rounded-full ${avatarBg} font-bold flex items-center justify-center text-xs shrink-0">${initials}</div>
@@ -4206,15 +3903,15 @@ function renderOrdersTable() {
           <td class="py-3.5 px-4">
             ${statusBadge}
           </td>
-          <td class="py-3.5 px-4 text-right" onclick="event.stopPropagation()">
+          <td class="py-3.5 px-4 text-right" data-stop-prop="1">
             <div class="flex items-center justify-end gap-1.5">
-              <button type="button" onclick="activateTab('${order.ref}')" class="px-2.5 py-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg text-[11px] shadow-2xs transition-all cursor-pointer">
+              <button type="button" data-click="activateTab" data-arg="${escapeHtml(order.ref)}" data-stop-prop="1" class="px-2.5 py-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg text-[11px] shadow-2xs transition-all cursor-pointer">
                 Open Tab
               </button>
-              <button type="button" onclick="copyToClipboard('${payUrl}', null)" class="px-2.5 py-1 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-semibold rounded-lg text-[11px] shadow-2xs transition-all cursor-pointer">
+              <button type="button" data-click="copyToClipboard" data-arg="${escapeHtml(payUrl)}" data-stop-prop="1" class="px-2.5 py-1 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-semibold rounded-lg text-[11px] shadow-2xs transition-all cursor-pointer">
                 Copy Link
               </button>
-              <a href="${payUrl}" target="_blank" class="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-md" title="View Customer Checkout">
+              <a href="${payUrl}" target="_blank" data-stop-prop="1" class="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-md" title="View Customer Checkout">
                 <span class="material-symbols-outlined text-[15px]">open_in_new</span>
               </a>
             </div>
@@ -4261,7 +3958,7 @@ function renderOrdersTable() {
       const avatarBg = isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700';
 
       return `
-        <div class="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-2xs flex flex-col gap-2.5 transition-all active:scale-[0.99] cursor-pointer" onclick="activateTab('${order.ref}')">
+        <div class="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-2xs flex flex-col gap-2.5 transition-all active:scale-[0.99] cursor-pointer" data-click="activateTab" data-arg="${escapeHtml(order.ref)}">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2.5 min-w-0">
               <div class="w-8 h-8 rounded-xl ${avatarBg} font-extrabold flex items-center justify-center text-xs shrink-0">
@@ -4287,10 +3984,10 @@ function renderOrdersTable() {
           <div class="flex items-center justify-between pt-0.5 text-xs">
             <span class="text-[10px] text-slate-400">${order.salesmanName ? escapeHtml(order.salesmanName) : 'Direct Link'}</span>
             <div class="flex items-center gap-1.5">
-              <button type="button" onclick="event.stopPropagation(); copyToClipboard('${payUrl}', null)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors">
+              <button type="button" data-click="copyToClipboard" data-arg="${escapeHtml(payUrl)}" data-stop-prop="1" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors">
                 Copy
               </button>
-              <a href="${payUrl}" target="_blank" onclick="event.stopPropagation();" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-colors no-underline">
+              <a href="${payUrl}" target="_blank" data-stop-prop="1" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-colors no-underline">
                 Pay Link →
               </a>
             </div>
@@ -4305,12 +4002,12 @@ function renderOrdersTable() {
 function openWhatsAppForCockpit() {
   if (!activeOrder) return;
   const origin = window.location.origin;
-  const payUrl = `${origin}/pay?ref=${activeOrder.ref}`;
+  const payUrl = `${origin}/pay?token=${encodeURIComponent(activeOrder.token)}`;
   const payableAmt = (activeOrder.payableAmount !== undefined ? activeOrder.payableAmount : activeOrder.amount).toFixed(2);
   const cleanName = (activeOrder.customerName || '').trim();
   const greeting = cleanName ? `Hi ${cleanName.split(' ')[0]}!` : 'Hello!';
   
-  const pitch = `${greeting} ✨ Your order for *${activeOrder.itemDescription}* (₹${payableAmt}) with ${activeOrder.brandName || 'our store'} is reserved.\n\nTap below to confirm your shipping address & pay securely via GPay/PhonePe/UPI:\n👉 ${payUrl}\n\nPlease transfer exact ₹${payableAmt} with reference *REF${activeOrder.ref}* for instant automatic bank confirmation!`;
+  const pitch = `${greeting} ✨ Your order for *${activeOrder.itemDescription}* (₹${payableAmt}) with ${activeOrder.brandName || 'our store'} is ready.\n\nTap below to confirm your shipping address & pay securely via GPay/PhonePe/UPI:\n👉 ${payUrl}\n\nPlease transfer exact ₹${payableAmt} with reference *REF${activeOrder.ref}* and keep your payment reference for support.`;
   
   const phone = (activeOrder.customerPhone || '').replace(/\D/g, '');
   if (!phone) {
@@ -4324,7 +4021,7 @@ function openWhatsAppForCockpit() {
 function copyCockpitLink() {
   if (!activeOrder) return;
   const origin = window.location.origin;
-  const payUrl = `${origin}/pay?ref=${activeOrder.ref}`;
+  const payUrl = `${origin}/pay?token=${encodeURIComponent(activeOrder.token)}`;
   copyToClipboard(payUrl, null);
   const textEl = document.getElementById('btnCopyCockpitLinkText');
   if (textEl) {
@@ -4336,7 +4033,9 @@ function copyCockpitLink() {
 
 function copyCurrentLink() {
   const origin = window.location.origin;
-  const url = activeRefNumber ? `${origin}/pay?ref=${activeRefNumber}` : `${origin}/pay`;
+  const created = window.PaySapExperience?.getCreated();
+  const url = created?.payUrl || (created?.order?.token ? `${origin}/pay?token=${encodeURIComponent(created.order.token)}` : '');
+  if (!url) { showToast('Create an order before copying its link.'); return; }
   copyToClipboard(url, 'linkBtn');
 }
 
@@ -4368,8 +4067,10 @@ function copyPitchText() {
 }
 
 function openWhatsAppDirect() {
+  const created = window.PaySapExperience?.getCreated();
+  if (created?.waLink) { window.open(created.waLink, '_blank', 'noopener'); return; }
   if (activeOrder && activeOrder.waLink) {
-    window.open(activeOrder.waLink, '_blank');
+    window.open(activeOrder.waLink, '_blank', 'noopener');
     return;
   }
   const phone = (document.getElementById('custPhone')?.value || '').replace(/[^0-9]/g, '');
@@ -4386,6 +4087,11 @@ function toggleQrModal(show) {
   const modal = document.getElementById('qrModal');
   if (!modal) return;
   if (show) {
+    const created = window.PaySapExperience?.getCreated();
+    const token = activeOrder?.token || created?.order?.token;
+    if (!token) { showToast('Create or open an order to show its checkout QR.'); return; }
+    const target = document.getElementById('sellerQrCode');
+    if (target && window.QRCode) target.innerHTML = window.QRCode.generateSvg(`${location.origin}/pay?token=${encodeURIComponent(token)}`, {width: 220, height: 220});
     modal.classList.remove('hidden');
   } else {
     modal.classList.add('hidden');
@@ -4432,7 +4138,7 @@ function escapeHtml(str) {
 
 function openStockCrmView() {
   if (currentRole === 'SALESMAN' && !currentStockAccess) {
-    showToast('⚠️ Access denied. Stock CRM management requires permission from store owner.');
+    showToast('⚠️ Access denied. Inventory management requires permission from store owner.');
     return;
   }
   switchMainView('MASTER');
@@ -4551,7 +4257,7 @@ function renderStockCrmTable() {
         <!-- Stock Level Indicator -->
         <td class="py-3 px-3.5 text-center">
           <div class="inline-flex items-center gap-1">
-            <input type="number" min="0" value="${stockQty}" onchange="handleDirectStockInput('${prod.id}', this.value)" ${controlsDisabled} class="w-14 text-center bg-slate-50 border border-slate-200 rounded-lg py-1 font-mono font-extrabold text-xs text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 outline-none ${controlsOpacity}"/>
+            <input type="number" min="0" value="${stockQty}" data-change="handleDirectStockInput" data-id="${escapeHtml(prod.id)}" ${controlsDisabled} class="w-14 text-center bg-slate-50 border border-slate-200 rounded-lg py-1 font-mono font-extrabold text-xs text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 outline-none ${controlsOpacity}"/>
             <span class="text-[11px] text-slate-400 font-semibold">pcs</span>
           </div>
         </td>
@@ -4564,16 +4270,16 @@ function renderStockCrmTable() {
         <!-- Quick Restock Actions (+/-) & Delete -->
         <td class="py-3 px-3.5 text-right whitespace-nowrap">
           <div class="inline-flex items-center gap-1.5">
-            <button type="button" onclick="handleAdjustStock('${prod.id}', -1)" ${controlsDisabled} class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition-all ${controlsOpacity}" title="Decrement -1">
+            <button type="button" data-click="handleAdjustStock" data-id="${escapeHtml(prod.id)}" data-delta="-1" ${controlsDisabled} class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center transition-all ${controlsOpacity}" title="Decrement -1">
               -
             </button>
-            <button type="button" onclick="handleAdjustStock('${prod.id}', 1)" ${controlsDisabled} class="w-7 h-7 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center transition-all ${controlsOpacity}" title="Increment +1">
+            <button type="button" data-click="handleAdjustStock" data-id="${escapeHtml(prod.id)}" data-delta="1" ${controlsDisabled} class="w-7 h-7 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center transition-all ${controlsOpacity}" title="Increment +1">
               +
             </button>
-            <button type="button" onclick="handleAdjustStock('${prod.id}', 5)" ${controlsDisabled} class="px-2 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center justify-center transition-all ${controlsOpacity}" title="Restock +5">
+            <button type="button" data-click="handleAdjustStock" data-id="${escapeHtml(prod.id)}" data-delta="5" ${controlsDisabled} class="px-2 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center justify-center transition-all ${controlsOpacity}" title="Restock +5">
               +5
             </button>
-            <button type="button" onclick="handleDeleteProduct('${prod.id}', '${escapeHtml(prod.name).replace(/'/g, "\\'")}')" ${controlsDisabled} class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-all ${controlsOpacity}" title="Delete Product">
+            <button type="button" data-click="handleDeleteProduct" data-id="${escapeHtml(prod.id)}" data-name="${escapeHtml(prod.name)}" ${controlsDisabled} class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-all ${controlsOpacity}" title="Delete Product">
               <span class="material-symbols-outlined text-[15px]">delete</span>
             </button>
           </div>
@@ -4625,11 +4331,11 @@ function renderStockCrmTable() {
           <div class="flex items-center justify-between gap-2">
             <div class="min-w-0">${badge}</div>
             <div class="inline-flex items-center gap-1 shrink-0">
-              <button type="button" onclick="handleAdjustStock('${prod.id}', -1)" ${controlsDisabled} aria-label="Decrease stock" class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-lg flex items-center justify-center active:scale-95 transition-all ${controlsOpacity}">−</button>
-              <input type="number" inputmode="numeric" min="0" value="${stockQty}" onchange="handleDirectStockInput('${prod.id}', this.value)" ${controlsDisabled} aria-label="Stock quantity" class="w-12 h-10 text-center bg-white border border-slate-200 rounded-xl font-mono font-extrabold text-slate-900 focus:border-indigo-500 outline-none px-0 ${controlsOpacity}" />
-              <button type="button" onclick="handleAdjustStock('${prod.id}', 1)" ${controlsDisabled} aria-label="Increase stock" class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-extrabold text-lg flex items-center justify-center active:scale-95 transition-all ${controlsOpacity}">+</button>
-              <button type="button" onclick="handleAdjustStock('${prod.id}', 5)" ${controlsDisabled} aria-label="Restock 5" class="px-2.5 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-center active:scale-95 transition-all ${controlsOpacity}">+5</button>
-              <button type="button" onclick="handleDeleteProduct('${prod.id}', '${escapeHtml(prod.name).replace(/'/g, "\\'")}')" ${controlsDisabled} aria-label="Delete product" class="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center active:scale-95 transition-all ${controlsOpacity}">
+              <button type="button" data-click="handleAdjustStock" data-id="${escapeHtml(prod.id)}" data-delta="-1" ${controlsDisabled} aria-label="Decrease stock" class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-lg flex items-center justify-center active:scale-95 transition-all ${controlsOpacity}">−</button>
+              <input type="number" inputmode="numeric" min="0" value="${stockQty}" data-change="handleDirectStockInput" data-id="${escapeHtml(prod.id)}" ${controlsDisabled} aria-label="Stock quantity" class="w-12 h-10 text-center bg-white border border-slate-200 rounded-xl font-mono font-extrabold text-slate-900 focus:border-indigo-500 outline-none px-0 ${controlsOpacity}" />
+              <button type="button" data-click="handleAdjustStock" data-id="${escapeHtml(prod.id)}" data-delta="1" ${controlsDisabled} aria-label="Increase stock" class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 font-extrabold text-lg flex items-center justify-center active:scale-95 transition-all ${controlsOpacity}">+</button>
+              <button type="button" data-click="handleAdjustStock" data-id="${escapeHtml(prod.id)}" data-delta="5" ${controlsDisabled} aria-label="Restock 5" class="px-2.5 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-center active:scale-95 transition-all ${controlsOpacity}">+5</button>
+              <button type="button" data-click="handleDeleteProduct" data-id="${escapeHtml(prod.id)}" data-name="${escapeHtml(prod.name)}" ${controlsDisabled} aria-label="Delete product" class="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center active:scale-95 transition-all ${controlsOpacity}">
                 <span class="material-symbols-outlined text-[18px]">delete</span>
               </button>
             </div>
@@ -4650,7 +4356,7 @@ function filterStockTable() {
 
 async function handleAdjustStock(productId, delta) {
   if (!currentStockAccess) {
-    showToast('⚠️ Stock CRM access required. Contact store owner.');
+    showToast('⚠️ Inventory access required. Contact store owner.');
     return;
   }
   try {
@@ -4675,7 +4381,7 @@ async function handleAdjustStock(productId, delta) {
 
 async function handleDirectStockInput(productId, newQty) {
   if (!currentStockAccess) {
-    showToast('⚠️ Stock CRM access required. Contact store owner.');
+    showToast('⚠️ Inventory access required. Contact store owner.');
     return;
   }
   const qty = parseInt(newQty, 10);
@@ -4705,7 +4411,7 @@ async function handleDirectStockInput(productId, newQty) {
 
 async function handleDeleteProduct(productId, productName) {
   if (!currentStockAccess) {
-    showToast('⚠️ Stock CRM access required. Contact store owner.');
+    showToast('⚠️ Inventory access required. Contact store owner.');
     return;
   }
   if (!confirm(`Are you sure you want to delete "${productName}" from the catalog?`)) {
@@ -4799,3 +4505,11 @@ async function handleAddNewProductSubmit() {
     btn.innerText = orig;
   }
 }
+
+// Retain unsaved tracking values when an order-list update replaces its rows.
+const renderDispatchWithDrafts = renderMasterDispatchTable;
+renderMasterDispatchTable = function () {
+  const result = renderDispatchWithDrafts.apply(this, arguments);
+  window.PaySapExperience?.restoreTrackingDrafts();
+  return result;
+};

@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.npm-cache/
 
 # Environment Variables & Secrets
 .env
@@ -7,16 +8,13 @@ node_modules/
 .env.local
 
 # Sensitive runtime configurations & credentials
-data/oauth_config.json
-
-# Dynamic runtime database stores (avoid repository bloat & data leaks)
-data/orders.json
-data/sessions.json
-data/unmatched_credits.json
+data/*.json
+!data/*.example.json
 data/*.tmp
 data_backup*/
 
-# System & Editor Logs
+# System, Review Artifacts & Editor Logs
+artifacts/
 *.log
 *.tmp
 .DS_Store
